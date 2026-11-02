@@ -121,6 +121,24 @@ end
         end
     end
 
+    @testset "负对照：点值格林函数冒充配对核必须失败" begin
+        # pointwise_fermionic_Gτ 返回轮廓两点收缩的精确点值（连续轮廓格林函数
+        # 的节点化，MPS-IF 列递归消费对象）——不是装配配对核。把它冒充
+        # Δ 塞进同一 Pfaffian 装配，观测量必须显著偏离——暴露旧 exactif
+        # 路线"点值 ≠ 配对核"的降级缺陷。
+        N = 4
+        kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=1,
+                                     imp_phase=exp(-εd*β/N), gfsolver=IFD.EigenSolver(2))
+        _, n̄strict, Gstrict = pf_assembly(kernel, N)
+        _, n̄fk, Gfk = fock_ref(1, N)
+        pw = pointwise_fermionic_Gτ(fspec; β=β, N=N, gfsolver=IFD.EigenSolver(2))
+        badkernel = IFD.StrictFermionicKernel(Matrix(pw.data), N, kernel.detBB)
+        _, n̄bad, Gbad = pf_assembly(badkernel, N)
+        @test maximum(abs.(real.(Gbad) .- Gfk)) > 1e-2     # 点值路线显著偏离
+        @test maximum(abs.(real.(Gstrict) .- Gfk)) < 1e-12 # 严格核逐位
+        @test abs(n̄bad - n̄fk) > 1e-2
+    end
+
     @testset "对角 H_imp 的阶数无关性" begin
         # 对角 H_imp 的 kick 相位沿迹可对易滑动 ⟹ orders 1/2 给出相同的
         # n̄ 和 G（劈分阶数对观测量无影响）。非对角 H_imp 下此等式破坏。
