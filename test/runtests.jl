@@ -13,9 +13,15 @@
 #               生效；Pkg.test 隔离环境自动跳过
 #   - 末尾三个 testset 为 IFDiscretization 特有：scheme 分派（rev 4 bath-first）、
 #               链内自洽（semicircular 版）、基础设施
-# 不移植：test/dense/*（Dense 不支持）、test/quapi/exactfermionic.jl
-#（ExactGrassmannIF 路线已删）、test/quapi/archive_regression.jl（驱动
-# QuAPI/performance 脚本，阶段 6 处理）。
+# 不移植（2026-11-01 裁决）：
+#   - test/dense/*（Dense 不支持）；
+#   - test/quapi/exactfermionic.jl、test/quapi/bcsimag.jl、test/quapi/bcsmixed.jl
+#    （三者的收缩 harness 基于 QuAPI.Dense 稠密 IF 机器——GrassmannIF/Zvalue/
+#     GrassmannADT/BosonicADT 等，随 Dense 留在 QuAPI/test/quapi 继续跑；
+#     对应内核的数值由存档回归逐字节钉住：firstorder+secondorder 的
+#     fermions/bcs CSV 即出自 fermionic_Δ* 与 bcs_Δ*）；
+#   - archive 的 imagtime_dense.csv（Dense 变体基准，第 19 个 CSV 同上）；
+#   - test/quapi/archive_regression.jl 的 imagtime_dense 测试集。
 # 与 QuAPI 的逐位对拍在 debug/parity_vs_quapi.jl（独立环境，非 Pkg.test 一部分）。
 # =============================================================================
 using Test
