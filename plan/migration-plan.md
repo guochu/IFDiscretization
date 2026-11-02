@@ -9,17 +9,36 @@
 > **test/quapi 只承担「核驱动的 1/2 阶时间演化」阶数断言**——长时间/细网格
 > 演化须多项式复杂度快速求解器，故只取自由玻色 / 自由费米（含 BCS）Toulouse
 > 模型；不用、也不需要稠密装配。落地：
-> ① `test/quapi/_kits.jl`——以 BosonKit/FermionKit/BcsKit 三模块引入
-> performance/{common,firstorder,secondorder} 的求解器与严格参照（脚本带
-> `PROGRAM_FILE` 守卫，include 只定义函数；模块化避免各 common 同名异体
-> 函数互相覆盖；**不复制代码，与基准零漂移**）；
-> ② `firstorder.jl`——朴素 face-value 装配对严格参照的误差阶梯
-> （N=16/32/64）断言全局一阶（log₂ 比值 ∈ [0.75,1.30]，存档实测 0.91–1.08）；
-> ③ `secondorder.jl`——同批核条目 + K/IF 拆分（Weyl-K：半步相位/梯形源/
+> ① `test/quapi/` **镜像 performance/ 的目录结构**（common/ + firstorder/
+> {bosons,fermions,bcs}×3 轮廓 + secondorder/ 同构 + fermions/bcs 的
+> common.jl），求解器为 **performance 树的快照拷贝**（去 main 与守卫，其余
+> 逐字未动；相对 include 路径在镜像树内原样解析，仅 secondorder 两个
+> mixedtime 的跨扇区 include 改直连 common）；不跨树 include performance/
+> ——基准树独立演化，与拷贝的同步是人工责任（archive_regression.jl 运行
+> 原件逐字节兜底基准数值，拷贝漂移则阶数断言失败自暴露）。每扇区文件外包
+> module 恢复 performance「每脚本独立进程」的命名隔离，自包含、可任意顺序
+> include，断言只经模块限定名访问求解器（同名函数 weyl_k_*/exact_Gτ/
+> frozen_mixed_naive 等跨统计不冲突）；
+> ② `firstorder/`——朴素 face-value 装配对严格参照的误差阶梯（N=16/32/64，
+> assert_order.jl 共用断言件）断言全局一阶（log₂ 比值 ∈ [0.75,1.30]，存档
+> 实测 0.91–1.08）；
+> ③ `secondorder/`——同批核条目 + K/IF 拆分（Weyl-K：半步相位/梯形源/
 > 接触隐式/KMS 跳变代入）断言全局二阶（∈ [1.80,2.20]，实测 1.96–2.01）。
 > 9 核 × 2 方案全覆盖，同时补上 fermionic_Δτ/Δm、bcs_Δτ/Δm 原先无活测试
 > 的缺口；archive_regression.jl 维持（存档管「数值不变」，阶数断言管
 > 「物理性质成立」）。
+
+> rev 9（2026-11-02，ExactIF 严格 IF 金标准落地，实时费米闭环）：Ng–Reichman
+> 过程张量链（已验证机器）原样移植进包——`src/fermions/exact/
+> {processtensor,contract,trotterref}.jl`（if_path_values / contract_impurity /
+> trotter_exact ← QuAPI/exactif brute+contract，runtests L0/L5/L7 已验证）。
+> 金标准 `test/exact/processtensor.jl`（46 断言）：收缩(if_path_values +
+> 对角 kick) == trotter_exact 机器精度（N=1..5 × 三组 ε/U 含 U=1.2 相互作用）、
+> n̄/⟨n↑n↓⟩ 观测量级、I[∅] = Z_N/Z（非幺正浴演化归一）。
+> `performance/exactif/`：标度脚本 + PNG（机器精度平线）。
+> 裁决记录：严格离散 IF 的正确表示 = 过程张量/G 块（纯浴、不含 H_imp，
+> PRB 107 §III.B），ε_d/U 只在 kick 收缩侧进入；环配对（Schur 补）路线与
+> "ExactIF 返回 CorrelationFunction"的旧预期均废弃。
 > ④ 自旋-玻色 ED 对拍与 Grassmann-Pfaffian 装配语义测试（属小规模正确性/
 > 约定验证）移 test/api：quapi/{imag,real,mixed}.jl → api/spinboson_{imag,
 > real,mixed}.jl，quapi/bcsreal.jl → api/bcs_grassmann.jl（+ _pfaffian_utils）。
