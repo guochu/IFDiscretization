@@ -1,4 +1,5 @@
-# 共享 Pfaffian/Grassmann 求积工具（由 quapi/bcsreal.jl 与 test/dense 对比测试共用）
+# 共享 Pfaffian/Grassmann 求积工具（由 api/bcs_grassmann.jl 使用；
+# QuAPI 侧的 dense 对比测试另有自己的拷贝）
 
 # =====================================================================
 # Pfaffian of an antisymmetric matrix (Parlett–Reid, O(n³))

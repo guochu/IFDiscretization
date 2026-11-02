@@ -1,9 +1,28 @@
 # IFDiscretization 移植计划 —— QuAPI 包重构
 
-> **实施状态（2026-11-01，rev 7 阶数严格对比 + 存档回归移植）**：阶段 0–4 完成。
+> **实施状态（2026-11-02，rev 8 test/quapi 职责重划）**：阶段 0–4 完成。
 > 正式测试套件（test/）= QuAPI 单元测试的移植（**不依赖 QuAPI**）；
 > 与 QuAPI 的逐位对拍在 `debug/parity_vs_quapi.jl`（独立环境，23 项全绿）。
 > QuAPI 未做任何改动（阶段 5 薄壳化待做）。
+>
+> rev 8 裁决：单元测试核心 = 9 个冻结核函数（3 统计 × 3 轮廓），
+> **test/quapi 只承担「核驱动的 1/2 阶时间演化」阶数断言**——长时间/细网格
+> 演化须多项式复杂度快速求解器，故只取自由玻色 / 自由费米（含 BCS）Toulouse
+> 模型；不用、也不需要稠密装配。落地：
+> ① `test/quapi/_kits.jl`——以 BosonKit/FermionKit/BcsKit 三模块引入
+> performance/{common,firstorder,secondorder} 的求解器与严格参照（脚本带
+> `PROGRAM_FILE` 守卫，include 只定义函数；模块化避免各 common 同名异体
+> 函数互相覆盖；**不复制代码，与基准零漂移**）；
+> ② `firstorder.jl`——朴素 face-value 装配对严格参照的误差阶梯
+> （N=16/32/64）断言全局一阶（log₂ 比值 ∈ [0.75,1.30]，存档实测 0.91–1.08）；
+> ③ `secondorder.jl`——同批核条目 + K/IF 拆分（Weyl-K：半步相位/梯形源/
+> 接触隐式/KMS 跳变代入）断言全局二阶（∈ [1.80,2.20]，实测 1.96–2.01）。
+> 9 核 × 2 方案全覆盖，同时补上 fermionic_Δτ/Δm、bcs_Δτ/Δm 原先无活测试
+> 的缺口；archive_regression.jl 维持（存档管「数值不变」，阶数断言管
+> 「物理性质成立」）。
+> ④ 自旋-玻色 ED 对拍与 Grassmann-Pfaffian 装配语义测试（属小规模正确性/
+> 约定验证）移 test/api：quapi/{imag,real,mixed}.jl → api/spinboson_{imag,
+> real,mixed}.jl，quapi/bcsreal.jl → api/bcs_grassmann.jl（+ _pfaffian_utils）。
 >
 > rev 7 补齐：① `test/exact/trotter_orders.jl`——exact IF 的 1/2/4/6 阶
 > Trotter 严格对比（exact 核 + order-k kick 装配 vs **同阶直接 Trotter 严格

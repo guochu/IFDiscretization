@@ -2,9 +2,13 @@
 # IFDiscretization 测试套件
 #
 # 单元测试 = QuAPI 原有测试的移植（不再支持的部分除外）：
-#   - api/      correlation-function API 测试（去 *_deprecated 对照块、
-#               infinitetime 测试集留在 QuAPI）
-#   - quapi/    冻结核数值测试（原样移植；dense 相关仅存在于注释）
+#   - api/      correlation-function API 测试（语义/约定 + 小规模物理正确性：
+#               自旋-玻色 ED 对拍 spinboson_*、Grassmann-Pfaffian 装配语义
+#               bcs_grassmann；infinitetime 测试集留在 QuAPI）
+#   - quapi/    冻结核驱动的快速时间演化阶数断言：自由玻色/费米/BCS Toulouse
+#               模型上，朴素 face-value 装配 ⇒ 一阶、K/IF 拆分（Weyl-K）⇒ 二阶
+#               （9 核全覆盖；目录结构镜像 performance/，求解器为快照拷贝）
+#               + 存档逐字节回归
 #   - exact/    exact API（Toulouse 严格核）自洽测试（← exactif/test；
 #               其余 toulouse_*/mx_* 为无断言的标度/诊断脚本，随研究线留 QuAPI）
 #   - osee.jl   GaussianStates 扩展的 corr→系数态 OSEE 测试（purify/解析锚；
@@ -53,23 +57,19 @@ include("api/runtests.jl")
 
 HAVE_GAUSSIANSTATES && include("osee.jl")
 
-### imaginary-time QuAPI
-#（bcsimag.jl / bcsmixed.jl 的 Toulouse ED 比较整段经 QuAPI.Dense Grassmann
-#  机器构造参照——dense 不支持，随 Dense 留在 QuAPI/test，不移植）
+### frozen-kernel QuAPI：自由模型上的快速时间演化，收敛阶断言
+#（目录结构镜像 performance/，求解器为 performance 树的快照拷贝（不跨树
+#  include，基准树独立演化）；自旋-玻色 ED 对拍与 Grassmann-Pfaffian 装配
+#  语义测试已移 test/api；bcsimag/bcsmixed 的 dense harness 随 QuAPI.Dense
+#  留守，bcs_Δτ/Δm 的数值由阶数断言 + 存档回归覆盖）
 
-include("quapi/imag.jl")
-
-### real-time QuAPI
-
-include("quapi/real.jl")
-include("quapi/bcsreal.jl")
-
-### mixed-time (Kadanoff contour) QuAPI
-
-include("quapi/mixed.jl")
+include("quapi/assert_order.jl")
+include("quapi/firstorder/runtests.jl")
+include("quapi/secondorder/runtests.jl")
 
 ### exact API (Toulouse 严格核，← exactif/test)
 
+include("exact/processtensor.jl")
 include("exact/api_consistency.jl")
 include("exact/api_mixed_check.jl")
 include("exact/exact_bosonic_check.jl")
