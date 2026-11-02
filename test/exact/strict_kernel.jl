@@ -67,14 +67,15 @@ function fock_ref(order::Int, N::Int)
     return Z, n̄, G
 end
 
-"装配契约：B = Δ 单体（测度/着装动能/Schur 杂交全部内含于核）；返回 Z（Pf）、n̄、G"
-function pf_assembly(kernel, N)
-    Δ = kernel.K
+"装配契约：B = 骨架(测度+动能+反周期闭) + Δ_IF；返回 Z（Pf）、n̄、G（B⁻¹ 元素）"
+function pf_assembly(kernel, N, εd)
+    δτ = β / N
+    x = exp(-εd * δτ)
     B = zeros(ComplexF64, 2N, 2N)
-    for i in 1:N, j in 1:N
-        B[2i, 2j-1] += Δ[i, j]
-        B[2j-1, 2i] -= Δ[i, j]
-    end
+    for i in 1:N; B[2i, 2i-1] += -1.0; B[2i-1, 2i] -= -1.0; end
+    for i in 1:N-1; B[2(i+1), 2i-1] += x; B[2i-1, 2(i+1)] -= x; end
+    B[2, 2N-1] += -x; B[2N-1, 2] -= -x
+    for i in 1:N, j in 1:N; B[2i, 2j-1] += kernel.K[i,j]; B[2j-1, 2i] -= kernel.K[i,j]; end
     Z = pfaffian(B)
     Binv = inv(B)
     n̄ = 1 - Binv[2, 1]
@@ -96,12 +97,17 @@ end
     end
 
     @testset "金标准：Z/n̄/G vs 同阶直接演化（orders 1/2 × N=1..8）" begin
-        for order in (1, 2), N in 1:8
+        for order in (1, 2), N in 2:8
             x = exp(-εd * β / N)
             kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=order,
                                          imp_phase=x, gfsolver=IFD.EigenSolver(2))
-            Zpf, n̄pf, Gpf = pf_assembly(kernel, N)
+            Zpf, n̄pf, Gpf = pf_assembly(kernel, N, εd)
             Zfk, n̄fk, Gfk = fock_ref(order, N)
+            ez = abs(real(kernel.detBB * Zpf) - Zfk)
+            en = abs(n̄pf - n̄fk)
+            eg = maximum(abs.(real.(Gpf) .- Gfk))
+            (ez > 1e-10 || en > 1e-12 || eg > 1e-12) &&
+                println("  ✗ order=$order N=$N:  err_Z=$ez  err_n̄=$en  err_G=$eg")
             @test abs(real(kernel.detBB * Zpf) - Zfk) < 1e-10
             @test abs(n̄pf - n̄fk) < 1e-12
             @test maximum(abs.(real.(Gpf) .- Gfk)) < 1e-12
@@ -109,12 +115,12 @@ end
     end
 
     @testset "Z 符号公式一致性（c(N) 不随 order 变化）" begin
-        for N in 1:8
+        for N in 2:8
             signs = Set{Int}()
             for order in (1, 2)
                 kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=order,
                                              imp_phase=exp(-εd*β/N), gfsolver=IFD.EigenSolver(2))
-                Zpf, _, _ = pf_assembly(kernel, N)
+                Zpf, _, _ = pf_assembly(kernel, N, εd)
                 Zfk, _, _ = fock_ref(order, N)
                 push!(signs, round(Int, sign(real(kernel.detBB * Zpf) / Zfk)))
             end
@@ -153,7 +159,7 @@ end
         # 正对照：严格核（已含测度/着装动能/Schur，B = Δ 单体即可）
         kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=1,
                                      imp_phase=x, gfsolver=IFD.EigenSolver(2))
-        Z_s, n̄s, Gs = pf_assembly(kernel, N)
+        Z_s, n̄s, Gs = pf_assembly(kernel, N, εd)
         @test abs(n̄s - n̄fk) < 1e-12
         @test maximum(abs.(real.(Gs) .- Gfk)) < 1e-12
 

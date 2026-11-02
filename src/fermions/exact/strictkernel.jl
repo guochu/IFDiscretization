@@ -36,8 +36,9 @@ ExactIF 严格离散 hybridization 核（虚时反周期环，(order, x) 特定�
 - `N`:  环节点数；
 - `detBB`:  浴涨落行列式 det(BB)（Z 归一因子；n̄/G 观测量不需要）。
 
-装配契约（金标准）：`B[ā_i, a_j] = Δ[i, j]` 单体；Pfaffian 收缩满足
-`Z_fock = c(N)·det(BB)·Pf(B)`、n̄/G 与同阶直接 Trotter 演化逐位。
+装配契约（金标准）：`B = 骨架 + Δ`（骨架 = 测度 −I + 动能 x·ā'_{i+1}a'_i
++ 反周期闭 −x·ā'_1a'_N），Pfaffian 收缩满足
+`Z_fock = det(BB)·Pf(B)`、n̄/G 与同阶直接 Trotter 演化逐位。
 """
 struct StrictFermionicKernel
     K::Matrix{ComplexF64}
@@ -66,7 +67,7 @@ end
                         gfsolver=EigenSolver(64), imp_phase=1.0)
         -> StrictFermionicKernel
 
-ExactIF 严格离散 hybridization 核（虚时反周期环，(order, imp_phase) 特定）。
+ExactIF 严格离散 IF-only 贡献（虚时反周期环，(order, imp_phase) 特定）。
 
 - `f`:  `AbstractBoundedFunction`（H_hyb 谱；GL-M 节点数 = `gfsolver` 的
   `nbath`）；
@@ -76,8 +77,9 @@ ExactIF 严格离散 hybridization 核（虚时反周期环，(order, imp_phase)
   默认 1 即 ε_d = 0）。x ≠ 1 时踢相位进入动能通道与杂交收缩行——有限
   ε_d 严格性的必要条件（金标准数值证明）。
 
-与点值格林函数路线（`pointwise_fermionic_Gτ`）不同，本输出是**装配级
-配对核**：单体装配后与同阶直接 Trotter 演化严格一致。
+**返回 IF-only 贡献**：Δ_IF = Δ_full − 骨架(测度+动能)。装配时加上
+标准骨架 B = 骨架 + Δ_IF 后，Pfaffian 收缩与同阶直接 Trotter 演化
+严格一致。与 QuAPI 冻结核完全同构：都是加到骨架上的 IF 块。
 """
 function strict_fermionic_Δτ(f::AbstractBoundedFunction;
                              β::Real, N::Int, order::Int=2, μ::Real=0,
@@ -97,8 +99,14 @@ function strict_fermionic_Δτ(f::AbstractBoundedFunction;
     S[1, N] = -1.0                                    # 反周期扭转
     MM = -Matrix{ComplexF64}(I, (M+1)*N, (M+1)*N) + kron(Wcell, S)
     II, IB, BI, BB = MM[1:N, 1:N], MM[1:N, N+1:end], MM[N+1:end, 1:N], MM[N+1:end, N+1:end]
-    Δ = II - IB * (BB \ BI)
+    Δ_full = II - IB * (BB \ BI)
+    # 减去骨架（测度 −I + 动能 x·S + 反周期闭 −x）⟹ IF-only 贡献
+    skeleton = zeros(ComplexF64, N, N)
+    for i in 1:N; skeleton[i, i] = -1.0; end
+    for i in 1:N-1; skeleton[i+1, i] = imp_phase; end
+    skeleton[1, N] = -imp_phase                       # 反周期闭
     detBB = det(BB)
+    Δ = Δ_full - skeleton
     # 双向量（order 1/2）：存 CorrelationMatrix；order 4/6 fractal：原始矩阵
     if order ∈ (1, 2)
         ηⱼₖ = [Δ[1+d, 1] for d in 0:N-1]
