@@ -125,28 +125,42 @@ end
     @testset "负对照：点值格林函数 ≠ 装配配对核" begin
         # pointwise_fermionic_Gτ 的条目是 H_hyb 精确演化的连续轮廓两点收缩
         #（格林函数点值，MPS-IF 列递归消费对象）——不是装配级配对核。
-        # 对照：同一 Pfaffian 装配（B = 核条目单体），严格核逐位、
-        # 点值显著偏离——定量暴露"格林函数点值 ≠ 配对核"。
+        # 负对照：点值冒充配对核（同一骨架测度+动能+反周期闭+IF 块）→ O(0.1)
+        # 偏差；严格核在同一骨架下逐位匹配。定量暴露"格林函数点值 ≠ 配对核"。
         N = 3
         x = exp(-εd * β / N)
         _, n̄fk, Gfk = fock_ref(1, N)
 
-        # 严格核（正对照，应逐位）
+        # 共用骨架构建：测度 −I + 动能跳跃 x·ā'_{i+1}a'_i + 反周期闭 −x·ā'_1a'_N
+        # + IF 块 Δ[i,j]（来源参数化）
+        function build_assembly(Δ)
+            B = zeros(ComplexF64, 2N, 2N)
+            add(p,q,c) = (B[p,q] += c; B[q,p] -= c)
+            for i in 1:N; add(2i, 2i-1, -1.0); end           # 测度
+            for i in 1:N-1; add(2(i+1), 2i-1, x); end        # 动能
+            add(2, 2N-1, -x)                                  # 反周期闭
+            for i in 1:N, j in 1:N; add(2i, 2j-1, Δ[i,j]); end # IF 块
+            return B
+        end
+
+        function pf_nbar_G(B)
+            Z = pfaffian(B); Binv = inv(B)
+            n̄ = 1 - Binv[2, 1]
+            G = [1 - n̄; [-Binv[2(N-m+1), 1] for m in 1:N-1]]
+            return Z, n̄, G
+        end
+
+        # 正对照：严格核（已含测度/着装动能/Schur，B = Δ 单体即可）
         kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=1,
                                      imp_phase=x, gfsolver=IFD.EigenSolver(2))
-        B_s = zeros(ComplexF64, 2N, 2N)
-        for i in 1:N, j in 1:N; B_s[2i, 2j-1] += kernel.K[i,j]; B_s[2j-1, 2i] -= kernel.K[i,j]; end
-        Z_s = pfaffian(B_s); Binv_s = inv(B_s)
-        n̄s = 1 - Binv_s[2, 1]
-        Gs = [1 - n̄s; [-Binv_s[2(N-m+1), 1] for m in 1:N-1]]
+        Z_s, n̄s, Gs = pf_assembly(kernel, N)
         @test abs(n̄s - n̄fk) < 1e-12
         @test maximum(abs.(real.(Gs) .- Gfk)) < 1e-12
 
-        # 点值（负对照，应偏离）
+        # 负对照：点值格林函数冒充配对核（同一骨架，仅换 IF 块来源）
         pw = pointwise_fermionic_Gτ(fspec; β=β, N=N, gfsolver=IFD.EigenSolver(2))
         Δpw = Matrix(pw.data)
-        B_pw = zeros(ComplexF64, 2N, 2N)
-        for i in 1:N, j in 1:N; B_pw[2i, 2j-1] += Δpw[i,j]; B_pw[2j-1, 2i] -= Δpw[i,j]; end
+        B_pw = build_assembly(Δpw)
         Z_pw = pfaffian(B_pw); Binv_pw = inv(B_pw)
         n̄pw = 1 - Binv_pw[2, 1]
         Gpw = [1 - n̄pw; [-Binv_pw[2(N-m+1), 1] for m in 1:N-1]]
@@ -154,8 +168,8 @@ end
         err_pw_G = maximum(abs.(real.(Gpw) .- Gfk))
         @test err_pw_n > 1e-2
         @test err_pw_G > 1e-2
-        println("  负对照: err_n̄ = $(round(err_pw_n, sigdigits=3)), " *
-                "err_G = $(round(err_pw_G, sigdigits=3))（点值 ≠ 配对核）")
+        println("  负对照: 点值路线 err_n̄ = $(round(err_pw_n, sigdigits=3)), " *
+                "err_G = $(round(err_pw_G, sigdigits=3))（严格核 ~ 1e-16）")
     end
 
     @testset "对角 H_imp 的阶数无关性" begin
