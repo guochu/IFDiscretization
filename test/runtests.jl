@@ -70,6 +70,7 @@ include("quapi/secondorder/runtests.jl")
 ### exact API (Toulouse 严格核，← exactif/test)
 
 include("exact/processtensor.jl")
+include("exact/strict_kernel.jl")
 include("exact/api_consistency.jl")
 include("exact/api_mixed_check.jl")
 include("exact/exact_bosonic_check.jl")
