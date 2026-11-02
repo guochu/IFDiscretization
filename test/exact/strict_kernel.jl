@@ -22,6 +22,7 @@ using ImpurityModelBase
 using IFDiscretization
 import IFDiscretization as IFD
 include(joinpath(@__DIR__, "..", "api", "_pfaffian_utils.jl"))
+const _pf = pfaffian
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
 
 const β = 2.0
@@ -121,22 +122,40 @@ end
         end
     end
 
-    @testset "负对照：点值格林函数冒充配对核必须失败" begin
-        # pointwise_fermionic_Gτ 返回轮廓两点收缩的精确点值（连续轮廓格林函数
-        # 的节点化，MPS-IF 列递归消费对象）——不是装配配对核。把它冒充
-        # Δ 塞进同一 Pfaffian 装配，观测量必须显著偏离——暴露旧 exactif
-        # 路线"点值 ≠ 配对核"的降级缺陷。
-        N = 4
-        kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=1,
-                                     imp_phase=exp(-εd*β/N), gfsolver=IFD.EigenSolver(2))
-        _, n̄strict, Gstrict = pf_assembly(kernel, N)
+    @testset "负对照：点值格林函数 ≠ 装配配对核" begin
+        # pointwise_fermionic_Gτ 的条目是 H_hyb 精确演化的连续轮廓两点收缩
+        #（格林函数点值，MPS-IF 列递归消费对象）——不是装配级配对核。
+        # 对照：同一 Pfaffian 装配（B = 核条目单体），严格核逐位、
+        # 点值显著偏离——定量暴露"格林函数点值 ≠ 配对核"。
+        N = 3
+        x = exp(-εd * β / N)
         _, n̄fk, Gfk = fock_ref(1, N)
+
+        # 严格核（正对照，应逐位）
+        kernel = strict_fermionic_Δτ(fspec; β=β, N=N, order=1,
+                                     imp_phase=x, gfsolver=IFD.EigenSolver(2))
+        B_s = zeros(ComplexF64, 2N, 2N)
+        for i in 1:N, j in 1:N; B_s[2i, 2j-1] += kernel.K[i,j]; B_s[2j-1, 2i] -= kernel.K[i,j]; end
+        Z_s = pfaffian(B_s); Binv_s = inv(B_s)
+        n̄s = 1 - Binv_s[2, 1]
+        Gs = [1 - n̄s; [-Binv_s[2(N-m+1), 1] for m in 1:N-1]]
+        @test abs(n̄s - n̄fk) < 1e-12
+        @test maximum(abs.(real.(Gs) .- Gfk)) < 1e-12
+
+        # 点值（负对照，应偏离）
         pw = pointwise_fermionic_Gτ(fspec; β=β, N=N, gfsolver=IFD.EigenSolver(2))
-        badkernel = IFD.StrictFermionicKernel(Matrix(pw.data), N, kernel.detBB)
-        _, n̄bad, Gbad = pf_assembly(badkernel, N)
-        @test maximum(abs.(real.(Gbad) .- Gfk)) > 1e-2     # 点值路线显著偏离
-        @test maximum(abs.(real.(Gstrict) .- Gfk)) < 1e-12 # 严格核逐位
-        @test abs(n̄bad - n̄fk) > 1e-2
+        Δpw = Matrix(pw.data)
+        B_pw = zeros(ComplexF64, 2N, 2N)
+        for i in 1:N, j in 1:N; B_pw[2i, 2j-1] += Δpw[i,j]; B_pw[2j-1, 2i] -= Δpw[i,j]; end
+        Z_pw = pfaffian(B_pw); Binv_pw = inv(B_pw)
+        n̄pw = 1 - Binv_pw[2, 1]
+        Gpw = [1 - n̄pw; [-Binv_pw[2(N-m+1), 1] for m in 1:N-1]]
+        err_pw_n = abs(n̄pw - n̄fk)
+        err_pw_G = maximum(abs.(real.(Gpw) .- Gfk))
+        @test err_pw_n > 1e-2
+        @test err_pw_G > 1e-2
+        println("  负对照: err_n̄ = $(round(err_pw_n, sigdigits=3)), " *
+                "err_G = $(round(err_pw_G, sigdigits=3))（点值 ≠ 配对核）")
     end
 
     @testset "对角 H_imp 的阶数无关性" begin
