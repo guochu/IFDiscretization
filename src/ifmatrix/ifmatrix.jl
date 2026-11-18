@@ -6,8 +6,9 @@
 # 机器（GrassmannADT/GrassmannIF/BosonicADT/BosonicPT/Zvalue/margin/乘法）
 # 不在移植范围（QuAPI.Dense 留守）；本层只含：
 #   · contour_ordering / basis —— 统一 contour 节点序与腿基
-#   · GrassmannHybridizationMatrix（含 2026-10-30 顶点位移装配，实时单 flavor
-#     保留位移，τ/mixed 回退 cell 读取）——费米 corr → (腿基, C)
+#   · GrassmannHybridizationMatrix（含顶点位移装配，2026-11-04 与 QuAPI.Dense
+#     同构收口：实时单 flavor 与 BCS RT 保留位移，τ/mixed raw 读取）——
+#     费米 corr → (腿基, C)
 #   · BosonicHybridizationMatrix / BosonicSplitDelta —— 玻色 corr → Δ
 #   · 玻色 OSEE 只消费 split=false 的普通矩阵；BosonicSplitDelta 供 PT
 #     构造（QuAPI.Dense 的 BosonicIF 用），随类型一并保留。
@@ -155,28 +156,20 @@ end
 # ——与玻色 non-diagonal PT 在 BosonicIF 里做的分支规则修复属同一层级的
 # 装配修正，核数值完全复用。
 #
-# 实时 Keldysh（节点 0..N，腿位 pos(j,br,ā) = 4j + (br==:+ ? 0:2) + (ā?2:1)）：
+# 生效范围（2026-10-30 判决、2026-11-04 与 contourindex.jl 访问器同构收口）：
+# 仅实时 Keldysh 保留顶点位移（单 flavor ED ✓、误差常数好 ~25×；BCS RT
+# 与访问器同规则迁移，gt/lt 4-16× 改善见 QuAPI 仓库 bcs_vertex_shift_accuracy.jl）。
+# τ 环位移使 g(τ) 离散误差常数恶化 ~30×（GTEMPO Toulouse 基准）、mixed
+# 位移与物理 ED 矛盾 6–7% 且不随 δt 收敛（GTEMPO 全部 mixed ED 套件）——
+# τ 环与混合轮廓一律 raw（cell 值）直读，移位映射本体已删除（证据与复现：
+# QuAPI 仓库 bugrepots/dense_mixed_vertexshift_convention.md；
+# GTEMPO/test/api/quapi_crosscheck.jl 为 Dense↔访问器逐位对齐测试）。
+
+# 实时 Keldysh 单 flavor（节点 0..N，腿位 pos(j,br,ā) = 4j + (br==:+ ? 0:2) + (ā?2:1)）：
 #   (ā⁺,a⁻)/(ā⁻,a⁺) 交叉块：值不变，仅开窗（ā⁺₀ 行、a⁻₀ 列 / a⁺_N 列、
 #     ā⁻_N 行置零——顶点窗口 = cell 1..N）
 #   (ā⁺,a⁺) 块：列移一位（aⱼ→aⱼ₊₁）；动能位 (j, j−1) 取 (ā⁻,a⁻) 块对角
 #   (ā⁻,a⁻) 块：镜像（列移 aⱼ→aⱼ₋₁；动能位 (j−1, j) 取 (ā⁺,a⁺) 块对角）
-#
-# 精度：核内容对严格方案（exact_fermionic_Δτ/Δt 参照）的残差按 V⁴ 标度
-# （比值≈16）——与玻色 non-diagonal PT 同级（O(V²) 系数精确 + V⁴ 截断）。
-# 整体 Z/ρ 另带一个 O(V²) 归一化常数（"跳去又跳回"泄漏 = exact_fermionic_*
-# 的 prefactor；迹归一化的观测量中自动消去）。
-#
-# 2026-10-30 生效范围收缩（与 contourindex.jl 访问器逐轮廓对齐），下游
-# TEMPO/GTEMPO 测试裁决：仅实时 Keldysh（单 flavor）保留顶点位移（ED 验证
-# 通过、误差常数好 ~25×）。τ 环位移使 g(τ) 离散误差常数恶化 ~30×（GTEMPO
-# Toulouse 基准）、mixed 位移与物理 ED 矛盾 6–7% 且不随 δt 收敛（GTEMPO
-# 全部 mixed ED 套件）——两者连同 BCS τ 均回退 cell（节点值）读取（证据与
-# 复现：QuAPI bugrepots/dense_mixed_vertexshift_convention.md）；BCS 装配
-# 一律 raw（BCS RT 由访问器读时位移，GTEMPO bcs_ed 基准 vertex 比 raw 好
-# 4–16×；BCS τ/mixed 访问器同为 raw）。 retired 的 τ/mixed/BCS-mixed 位移
-# 变体见 QuAPI 仓库历史（dense/fermion.jl）。
-
-
 function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     pos(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
     diag₊₊ = C[pos(0, :+, true), pos(0, :+, false)]   # (+,+) 块对角（Toeplitz 常值）
@@ -199,25 +192,38 @@ function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
     return D
 end
 
+# BCS 实时：每节点 8 腿（每支 a↑,ā↑,a↓,ā↓，+ 支在前），四个指数块
+# （uu↑/uu↓/ud/du）按与访问器完全相同的 `_vs_rt_acc` 规则逐腿对移位——
+# 动能位由映射落回 (:+,1,:+,1)/( :-,1,:,1) 的块对角，与单 flavor 的
+# "取本支对角"逐位一致。
+function _vertex_shifted_bcs_rt(C::AbstractMatrix{T}, N::Int) where {T}
+    ipos(br, j, band, ā) = 8 * j + (br === :+ ? 0 : 4) + (band - 1) * 2 + (ā ? 2 : 1)
+    D = zero(C)
+    blocks = (((1, true), (1, false)),   # (ā↑,a↑) = uu 正常 ↑
+              ((2, true), (2, false)),   # (ā↓,a↓) = uu 正常 ↓
+              ((1, true), (2, true)),    # (ā↑,ā↓) = ud 反常
+              ((2, false), (1, false)))  # (a↓,a↑) = du 反常
+    for b1 in (:+, :-), j1 in 0:N, b2 in (:+, :-), j2 in 0:N
+        m = _vs_rt_acc(b1, j1 + 1, b2, j2 + 1, N)   # N = cell 数（访问器约定）
+        m === nothing && continue
+        for (rb, cb) in blocks
+            D[ipos(b1, j1, rb...), ipos(b2, j2, cb...)] =
+                m[5] * C[ipos(m[1], m[2] - 1, rb...), ipos(m[3], m[4] - 1, cb...)]
+        end
+    end
+    return Matrix(D)
+end
+
 function _vertex_shifted_IF(C::AbstractMatrix, bs::Vector{GrassmannContourIndex})
     brs = branch.(bs)
-    single = all(b -> b.band == 1, bs)
     mixed = any(==(:τ), brs) && any(b -> b === :+ || b === :-, brs)
-    # 2026-10-30 与访问器（contourindex.jl）逐轮廓对齐——只有实时 Keldysh
-    # （单 flavor）保留顶点位移，其余轮廓回退 cell（节点值）读取：
-    #   · 实时 Keldysh（单 flavor）：位移保留——ED 验证通过，误差常数好 ~25×；
-    #   · τ 环：回退——顶点重组使 g(τ) 离散误差常数恶化 ~30×（0.017 vs
-    #     0.0006 @δτ=0.125，同为一阶；GTEMPO Toulouse 基准
-    #     performance/firstorder/vertex_shift_accuracy.jl）；
-    #   · mixed：回退——顶点位移与物理 ED 矛盾（GTEMPO 全部 mixed ED 套件
-    #     偏差 6–7% 且不随 δt 收敛；cell 读取全部通过；证据与复现见
-    #     QuAPI bugrepots/dense_mixed_vertexshift_convention.md）；
-    #   · BCS：装配一律 raw（BCS RT 由访问器读时位移，见 contourindex.jl）。
-    if single && !mixed
-        all(b -> b === :τ, brs) && return C          # τ 环：raw（g(τ) 常数恶化 30×）
-        return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)  # RT 单 flavor：位移保留（ED ✓）
-    end
-    return C                                         # BCS RT / mixed / BCS mixed：raw
+    single = all(b -> b.band == 1, bs)
+    # 与访问器（contourindex.jl）逐轮廓一致：仅实时 Keldysh 位移，τ 环与混合
+    # raw（cell 值）直读——判决依据见上方范围注释。
+    mixed && return C                                  # 混合（单 flavor / BCS）：raw
+    all(b -> b === :τ, brs) && return C                # τ 环（单 flavor / BCS）：raw
+    single && return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)
+    return _vertex_shifted_bcs_rt(C, length(bs) ÷ 8 - 1)
 end
 
 GrassmannHybridizationMatrix(x::IFSource) =

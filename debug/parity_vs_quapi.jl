@@ -4,7 +4,8 @@
 # IFDiscretization 将来要替代 QuAPI，正式测试套件（test/）不依赖 QuAPI；
 # 本脚本是过渡期的交叉验证工具：QuAPI 以限定名共存（IFD.xxx / QuAPI.xxx），
 # 三统计 × 三轮廓的冻结核逐一逐位比对（两包同名类型跨模块 == 会回落 ===，
-# 必须经 samebits 逐字段比较）。
+# 必须经 samebits 逐字段比较）；另有腿指标访问器的逐元素对拍（普通/BCS/玻色
+# × 三轮廓，含 2026-11-03 BCS 有向指数系数语义）。
 #
 # 运行：julia --project=. debug/parity_vs_quapi.jl   （IFDiscretization 包根目录）
 # =============================================================================
@@ -80,6 +81,49 @@ end
           IFD.exact_bosonic_Δτ(fB, β=β, N=5, μ=0.2, gfsolver=IFD.EigenSolver(64))
     @test IFD.Δτ(bF, N=5, scheme=e) ==
           IFD.exact_fermionic_Δτ(fF, β=β, N=5, μ=0.3, gfsolver=IFD.EigenSolver(64))
+end
+
+@testset "腿指标访问器：与 QuAPI 逐元素对拍（含 2026-11-03 BCS 有向指数系数语义）" begin
+    # 各分支的 j 范围：branch 块的阶（虚时只有 :τ；实时 :+/:− 同长；混合 :τ 短一格系）
+    jran(x, b) = 1:length(IFD.branch(x; b1=b, b2=b).ηⱼₖ)
+    # 普通费米：三轮廓 × 全腿对逐元素（a-ā 收缩语义：a-ā 取 +Δ、ā-a 取 −Δ、
+    # 同 conj 为零；实时顶点位移、τ/mixed raw）
+    for (xc, yc) in ((IFD.Δτ(bF, N=6), QuAPI.Δτ(bF, N=6)),
+                     (IFD.Δt(bF, N=5, t=1.2), QuAPI.Δt(bF, N=5, t=1.2)),
+                     (IFD.Δm(bF, Nτ=4, Nt=3, t=0.8), QuAPI.Δm(bF, Nτ=4, Nt=3, t=0.8)))
+        brs = IFD.branches(xc)
+        mkc = (b, j, c) -> IFD.GrassmannContourIndex(j, b, 1, c)
+        mkq = (b, j, c) -> QuAPI.GrassmannContourIndex(j, b, 1, c)
+        for b1 in brs, j1 in jran(xc, b1), c1 in (false, true),
+            b2 in brs, j2 in jran(xc, b2), c2 in (false, true)
+            @test xc[mkc(b1, j1, c1), mkc(b2, j2, c2)] ==
+                  yc[mkq(b1, j1, c1), mkq(b2, j2, c2)]
+        end
+    end
+    # BCS：有向 IF 指数系数（(ā↑,a↑)/(ā↓,a↓)→+uu、(ā↑,ā↓)→+ud、(a↓,a↑)→+du、
+    # 误配为零）——虚时/实时（顶点位移）/混合（raw）三轮廓逐元素
+    for (xc, yc) in ((IFD.Δτ(bC, N=5, scheme=IFD.QuAPI()), QuAPI.Δτ(bC, N=5)),
+                     (IFD.Δt(bC, N=4, t=1.2, scheme=IFD.QuAPI()), QuAPI.Δt(bC, N=4, t=1.2)),
+                     (IFD.Δm(bC, Nτ=4, Nt=3, t=0.8, scheme=IFD.QuAPI()), QuAPI.Δm(bC, Nτ=4, Nt=3, t=0.8)))
+        brs = IFD.branches(xc)
+        mkc = (b, j, band, c) -> IFD.GrassmannContourIndex(j, b, band, c)
+        mkq = (b, j, band, c) -> QuAPI.GrassmannContourIndex(j, b, band, c)
+        for b1 in brs, j1 in jran(xc.uu, b1), band1 in 1:2, c1 in (false, true),
+            b2 in brs, j2 in jran(xc.uu, b2), band2 in 1:2, c2 in (false, true)
+            @test xc[mkc(b1, j1, band1, c1), mkc(b2, j2, band2, c2)] ==
+                  yc[mkq(b1, j1, band1, c1), mkq(b2, j2, band2, c2)]
+        end
+    end
+    # 玻色（无 band，直读）
+    for (xc, yc) in ((IFD.Δτ(bB, N=5), QuAPI.Δτ(bB, N=5)),
+                     (IFD.Δt(bB, N=4, t=1.2), QuAPI.Δt(bB, N=4, t=1.2)))
+        brs = IFD.branches(xc)
+        mkc = (b, j) -> IFD.BosonicContourIndex(j, b)
+        mkq = (b, j) -> QuAPI.BosonicContourIndex(j, b)
+        for b1 in brs, j1 in jran(xc, b1), b2 in brs, j2 in jran(xc, b2)
+            @test xc[mkc(b1, j1), mkc(b2, j2)] == yc[mkq(b1, j1), mkq(b2, j2)]
+        end
+    end
 end
 
 println("parity_vs_quapi 完成")

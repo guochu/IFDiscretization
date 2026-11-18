@@ -54,6 +54,10 @@ using Base: @boundscheck
 using ImpurityModelBase
 using LinearAlgebra
 
+# branch/branches 由 ImpurityModelBase 定义并 export（Green 函数侧）；
+# IFDiscretization 对同一函数在相关函数（IF）侧重载，避免双包同名函数歧义。
+import ImpurityModelBase: branch, branches
+
 include("defaults.jl")
 include("utility.jl")
 include("schemes.jl")
