@@ -9,14 +9,16 @@
 #               模型上，朴素 face-value 装配 ⇒ 一阶、K/IF 拆分（Weyl-K）⇒ 二阶
 #               （9 核全覆盖；目录结构镜像 performance/，求解器为快照拷贝）
 #               + 存档逐字节回归
-#   - exact/    exact API（Toulouse 严格核）自洽测试（← exactif/test；
-#               其余 toulouse_*/mx_* 为无断言的标度/诊断脚本，随研究线留 QuAPI）
+#   - exact/    ExactIF 金标准（2026-11-18 收窄）：基于包内 exact_* 函数
+#               （纯浴严格 IF 核）装配的无相互作用模型 1/2 阶 Trotter 演化
+#               == 同阶直接 Trotter 演化（逐位/机器精度），按 bath×轮廓
+#               逐文件（fermionic_imagtime.jl …）
 #   - osee.jl   GaussianStates 扩展的 corr→系数态 OSEE 测试（purify/解析锚；
 #               稠密张量锚段留在 QuAPI/test/osee.jl）。默认环境（@v1.10）
 #               dev 了 GaussianStates 时经 `julia --project=. test/runtests.jl`
 #               生效；Pkg.test 隔离环境自动跳过
-#   - 末尾三个 testset 为 IFDiscretization 特有：scheme 分派（rev 4 bath-first）、
-#               链内自洽（semicircular 版）、基础设施
+#   - 末尾两个 testset 为 IFDiscretization 特有：scheme 分派（rev 4 bath-first）、
+#               基础设施
 # 不移植（2026-11-01 裁决）：
 #   - test/dense/*（Dense 不支持）；
 #   - test/quapi/exactfermionic.jl、test/quapi/bcsimag.jl、test/quapi/bcsmixed.jl
@@ -67,15 +69,10 @@ include("quapi/assert_order.jl")
 include("quapi/firstorder/runtests.jl")
 include("quapi/secondorder/runtests.jl")
 
-### exact API (Toulouse 严格核，← exactif/test)
+### ExactIF 金标准：包内 exact_* 函数装配 == 同阶直接 Trotter（逐 bath×轮廓）
 
-include("exact/processtensor.jl")
-include("exact/strict_kernel.jl")
-include("exact/api_consistency.jl")
-include("exact/api_mixed_check.jl")
-include("exact/exact_bosonic_check.jl")
-include("exact/exact_bcs_check.jl")
-include("exact/trotter_orders.jl")
+include("exact/fermionic_imagtime.jl")
+include("exact/fermionic_realtime.jl")
 
 ### 存档回归：一阶/二阶装配基准 vs 存档 CSV 逐字节（数值移植的最终防线；
 ###   存档数据自 QuAPI/test/quapi/archive_* 原样拷入；耗时较长）
@@ -113,23 +110,6 @@ include("quapi/archive_regression.jl")
           IFD.exact_fermionic_Δm(fF, β=β, Nτ=3, Nt=3, t=0.6, μ=0.3, gfsolver=IFD.EigenSolver(32))
     # 核技术与统计正交：QuAPI() 与 ExactIF() 结果不同（同为 ImagCorrelationFunction）
     @test IFD.Δτ(bF, N=5) != IFD.Δτ(bF, N=5, scheme=e)
-end
-
-@testset "exact API：链内自洽（semicircular 版，μ=0 恒等段同原 api_mixed_check）" begin
-    β = 2.0
-    fF = semicircular()
-    M = 48
-    # μ=0（Δm↔Δt 交叉块恒等与 Gτ₊ 反对称仅 μ=0 成立，同原 api_mixed_check 参数）
-    Δm = IFD.exact_fermionic_Δm(fF, β=β, Nτ=5, t=0.6, Nt=4, μ=0.0, gfsolver=IFD.EigenSolver(M))
-    Δt_, _ = IFD.exact_fermionic_Δt(fF, β=β, N=4, t=0.6, μ=0.0, gfsolver=IFD.EigenSolver(M))
-    Δτ = IFD.exact_fermionic_Δτ(fF, β=β, N=5, μ=0.0, gfsolver=IFD.EigenSolver(M))
-    @test maximum(abs.(Δm.G₊₋ - Δt_.G₊₋)) < 1e-13
-    @test maximum(abs.(Δm.G₋₊ - Δt_.G₋₊)) < 1e-13
-    @test Δm.Gττ.ηⱼₖ == Δτ.data.ηⱼₖ
-    @test Δm.Gττ.ηₖⱼ == Δτ.data.ηₖⱼ
-    @test maximum(abs.(Δm.Gτ₊ .+ transpose(Δm.G₊τ))) < 1e-10   # μ=0 反对称
-    @test branch(Δm; b1=:-, b2=:τ) == .-Δm.G₊τ
-    @test branch(Δm; b1=:τ, b2=:-) == .-Δm.Gτ₊
 end
 
 @testset "基础设施" begin

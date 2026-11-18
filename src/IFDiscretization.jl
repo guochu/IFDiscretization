@@ -27,12 +27,9 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 # contour indices
 export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
-# 严格核（exact API，自 QuAPI/exactif/test 收编；exact_fermionic_* 接替
-# 已删除的 ExactGrassmannIF 路线，返回标准 CorrelationFunction）
-export ExactIF, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δm
-export if_path_values, if_full_tensor, contract_impurity, trotter_exact
-export StrictFermionicKernel, strict_fermionic_Δτ, pointwise_fermionic_Gτ
-export single_particle_h, mb_generator
+# 严格核（exact API，纯浴对象：签名同冻结核，无杂质信息；装配契约与
+# 金标准见 test/exact/fermionic_imagtime.jl 与 fermionic_realtime.jl）
+export ExactIF, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δt_cells, exact_fermionic_Δm
 export exact_bosonic_Δτ, exact_bosonic_Δt, exact_bosonic_Δm
 export exact_bcs_Δτ, exact_bcs_Δt, exact_bcs_Δm
 
