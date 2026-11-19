@@ -9,8 +9,8 @@ include("exact/exact.jl")
     Δτ(bath::AbstractBosonicNormalBath; N, δτ=bath.β/N, scheme=QuAPI())
 
 玻色浴虚时 hybridization function。`scheme::DiscretizationScheme` 选核技术：
-`QuAPI()`（默认，一阶冻结核梯形装配）或 `ExactIF(gfsolver)`（严格核，
-每模闭式 + GL-M 求积，`EigenSolver(nbath)` 给节点数）。返回
+`QuAPI()`（默认，一阶冻结核梯形装配）或 `ExactEqualDistantKernel(gfsolver)`（严格核，
+每模闭式 + GL-M 求积，`EDToulouseSolver(nbath)` 给节点数）。返回
 `ImagCorrelationFunction`。β、μ 从 bath 对象读取。
 """
 Δτ(bath::AbstractBosonicNormalBath; N::Int, δτ::Real=bath.β/N,
@@ -18,8 +18,8 @@ include("exact/exact.jl")
 
 _bosons_Δτ(::QuAPI, bath::AbstractBosonicNormalBath, N::Int, δτ::Real) =
     bosonic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-_bosons_Δτ(s::ExactIF, bath::AbstractBosonicNormalBath, N::Int, δτ::Real) =
-    exact_bosonic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ; gfsolver=s.gfsolver)
+_bosons_Δτ(s::ExactEqualDistantKernel, bath::AbstractBosonicNormalBath, N::Int, δτ::Real) =
+    exact_bosonic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ; gfsolver=s.solver)
 
 """
     Δt(bath::AbstractBosonicNormalBath; N, t, scheme=QuAPI())
@@ -32,8 +32,8 @@ scheme 语义同 `Δτ`。返回 `RealCorrelationFunction`。
 
 _bosons_Δt(::QuAPI, bath::AbstractBosonicNormalBath, N::Int, t::Real) =
     bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ)
-_bosons_Δt(s::ExactIF, bath::AbstractBosonicNormalBath, N::Int, t::Real) =
-    exact_bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ; gfsolver=s.gfsolver)
+_bosons_Δt(s::ExactEqualDistantKernel, bath::AbstractBosonicNormalBath, N::Int, t::Real) =
+    exact_bosonic_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ; gfsolver=s.solver)
 
 """
     Δm(bath::AbstractBosonicNormalBath; Nτ, t, Nt, δτ=bath.β/Nτ, scheme=QuAPI())
@@ -46,5 +46,5 @@ scheme 语义同 `Δτ`。返回 `MixedCorrelationFunction`。
 
 _bosons_Δm(::QuAPI, bath::AbstractBosonicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
     bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
-_bosons_Δm(s::ExactIF, bath::AbstractBosonicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
-    exact_bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ; gfsolver=s.gfsolver)
+_bosons_Δm(s::ExactEqualDistantKernel, bath::AbstractBosonicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
+    exact_bosonic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ; gfsolver=s.solver)

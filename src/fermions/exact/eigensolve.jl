@@ -1,4 +1,4 @@
-# EigenSolver 的实现：GL-M 谱离散（浴 h₀ 按需内联构造）
+# EDToulouseSolver 的实现：GL-M 谱离散（浴 h₀ 按需内联构造）
 # ← QuAPI/exactif/test/exactif_api.jl 原样移植（kernel 未动）
 
 "GL-M 求积节点上的谱数据（求积节点，非物理模式）。μ = 谱平移。"

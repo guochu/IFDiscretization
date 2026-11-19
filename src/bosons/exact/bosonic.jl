@@ -18,8 +18,8 @@
 # 注：条目为点值闭式（exactif 族约定），与冻结核的梯形积分核**不同对象**
 # （同 exactif 与 fermionic_* 冻结核的关系）。
 #
-# 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseGreenFunctionSolver
-# = EigenSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
+# 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseSolver
+# = EDToulouseSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
 # 逐位一致。
 # =============================================================================
 
@@ -35,14 +35,14 @@ function _boson_modes(f::AbstractBoundedFunction, μ::Real, M::Int)
 end
 
 """
-    exact_bosonic_Δτ(f; β, N, μ=0, δτ=β/N, gfsolver=EigenSolver(64)) -> ImagCorrelationFunction
+    exact_bosonic_Δτ(f; β, N, μ=0, δτ=β/N, gfsolver=EDToulouseSolver(64)) -> ImagCorrelationFunction
 
 严格装配虚时核（点值 + 玻色 KMS 周期延拓；spectrumshift μ 路径）。
-`gfsolver` 提供格林函数求解器（`EigenSolver(nbath)` 的 nbath = GL-M 节点数）。
+`gfsolver` 提供格林函数求解器（`EDToulouseSolver(nbath)` 的 nbath = GL-M 节点数）。
 """
 function exact_bosonic_Δτ(f0::AbstractBoundedFunction; β::Real, N::Int,
                           μ::Real=0, δτ::Real=β / N,
-                          gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                          gfsolver::ToulouseSolver=EDToulouseSolver(64))
     β = convert(Float64, β)
     f = spectrumshift(f0, μ)
     ωs, ws = _boson_modes(f, 0.0, _nbath(gfsolver))
@@ -53,13 +53,13 @@ function exact_bosonic_Δτ(f0::AbstractBoundedFunction; β::Real, N::Int,
 end
 
 """
-    exact_bosonic_Δt(f; β, N, t, μ=0, gfsolver=EigenSolver(64)) -> RealCorrelationFunction
+    exact_bosonic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64)) -> RealCorrelationFunction
 
 严格装配实时核：greater/lesser 点值。存储对 = (G₊₋ = CM(−conj(G<), −G>),
 G₋₊ = CM(−G>, −conj(G<)))——玻色交叉支的 ±conj 约定（玻色谱恒实）。
 """
 function exact_bosonic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
-                          μ::Real=0, gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                          μ::Real=0, gfsolver::ToulouseSolver=EDToulouseSolver(64))
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     δt = t / N
@@ -74,14 +74,14 @@ function exact_bosonic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real
 end
 
 """
-    exact_bosonic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EigenSolver(64)) -> MixedCorrelationFunction
+    exact_bosonic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64)) -> MixedCorrelationFunction
 
 严格装配混合核：ττ = Δτ 环；Keldysh 四向量（同 Δt 布局）；τ-交叉闭式
 G₊τ[a+1,i] = Σ w(1+n)e^{−ωτ}e^{−iωt}、Gτ₊ = lesser 分支（有界）。
 """
 function exact_bosonic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                           Nt::Int, μ::Real=0, δτ::Real=β / Nτ,
-                          gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                          gfsolver::ToulouseSolver=EDToulouseSolver(64))
     β = convert(Float64, β)
     μ = convert(Float64, μ)
     δt = t / Nt

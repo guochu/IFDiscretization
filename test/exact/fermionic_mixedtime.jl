@@ -1,5 +1,5 @@
 # =============================================================================
-# exact/fermionic_mixedtime.jl —— 费米混合 ExactIF 金标准
+# exact/fermionic_mixedtime.jl —— 费米混合 ExactEqualDistantKernel 金标准
 #
 # 契约（2026-11-19 装配级换代，← QuAPI/src/exactfermionic.jl `exact_fermionic_Δm`
 # 母本移植 + 带踢复合 + 环状结构化求解）：
@@ -58,7 +58,7 @@ end
 function mixed_route(f, Nτ::Int, Nt::Int, β::Real, t::Real, M::Int;
                      kicksτ=ones(Nτ), kickst=ones(Nt))
     kern, ndlt = exact_fermionic_Δm(f; β=β, Nτ=Nτ, t=t, Nt=Nt,
-                                    gfsolver=IFD.EigenSolver(M),
+                                    gfsolver=IFD.EDToulouseSolver(M),
                                     kicksτ=ComplexF64.(kicksτ), kickst=ComplexF64.(kickst))
     Z = ndlt * det(mixed_assemble(kern.Δ, Nτ, Nt))
     return kern, real(Z)
@@ -88,7 +88,7 @@ const β = 2.0
 const t_T = 0.6
 const εd = 0.3
 
-@testset "费米混合 ExactIF 金标准（单环带踢 Schur，Keldysh 段精确相消）" begin
+@testset "费米混合 ExactEqualDistantKernel 金标准（单环带踢 Schur，Keldysh 段精确相消）" begin
 
     f2 = bounded(ω -> 1.0, -1.0, 1.0)                  # 2 模离散参照
     f1 = bounded(ω -> 1.0, -1.0, 1.0)                  # 1 模（prefactor 符号钉定）
@@ -164,7 +164,7 @@ const εd = 0.3
             kickst = withkicks ? ComplexF64.(exp(-im * δt * εd) for _ in 1:Nt) :
                      ones(ComplexF64, Nt)
             k1, n1 = exact_fermionic_Δm(f2; β=β, Nτ=Nτ, t=t_T, Nt=Nt,
-                                        gfsolver=IFD.EigenSolver(2),
+                                        gfsolver=IFD.EDToulouseSolver(2),
                                         kicksτ=kicksτ, kickst=kickst)
             k2, n2 = IFD._exrt_mixed_kernel_dense(f2, β, Nτ, t_T, Nt, δτ, 0.0, 2,
                                                   kicksτ, kickst)
@@ -176,7 +176,7 @@ const εd = 0.3
     # ---- 腿基契约：basis == contour_ordering 混合序（可替换冻结核） ----
     @testset "腿基契约：混合 contour_ordering" begin
         kern, _ = exact_fermionic_Δm(f2; β=β, Nτ=3, t=t_T, Nt=2,
-                                     gfsolver=IFD.EigenSolver(2))
+                                     gfsolver=IFD.EDToulouseSolver(2))
         @test kern.basis == vcat([GrassmannContourIndex(j, :τ, 1, c)
                                   for j in 1:3 for c in (false, true)],
                                  [GrassmannContourIndex(jj, br, 1, c)
@@ -184,4 +184,4 @@ const εd = 0.3
     end
 
 end
-println("费米混合 ExactIF 金标准通过 ✓（Z 证书 ×2 + T1 + 结构等价 + 腿基契约）")
+println("费米混合 ExactEqualDistantKernel 金标准通过 ✓（Z 证书 ×2 + T1 + 结构等价 + 腿基契约）")

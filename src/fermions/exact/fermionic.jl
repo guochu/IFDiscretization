@@ -1,5 +1,5 @@
 # =============================================================================
-# exact —— 费米浴严格 IF 核（ExactIF）
+# exact —— 费米浴严格 IF 核（ExactEqualDistantKernel）
 #
 # 纯浴对象契约（2026-11-18 换代）：三个入口签名与冻结核 fermionic_Δτ/Δt/Δm
 # 一致，不含任何杂质信息（无 ε_d、无劈分阶数）——杂质 kick 相位经恒等式
@@ -14,10 +14,10 @@
 # ------------------------------ 虚时 ------------------------------ #
 
 """
-    exact_fermionic_Δτ(f; β, N, μ=0, δτ=β/N, gfsolver=EigenSolver(64))
+    exact_fermionic_Δτ(f; β, N, μ=0, δτ=β/N, gfsolver=EDToulouseSolver(64))
         -> (ImagCorrelationFunction, normdelta)
 
-ExactIF 严格 IF 核（虚时反周期环）——**纯浴对象**（不含任何杂质信息），
+ExactEqualDistantKernel 严格 IF 核（虚时反周期环）——**纯浴对象**（不含任何杂质信息），
 元组返回：`(Δ_if, normdelta)`。
 
 严格性依据：杂质 kick 相位 x = e^{−δτ·ε_d} 从严格核线性析出，Δ_IF(x) =
@@ -38,7 +38,7 @@ order、ε_d 无关。构造 = 反周期环单粒子矩阵 M = −I + kron(W, S)
 """
 function exact_fermionic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int,
                             μ::Real=0, δτ::Real=β / N,
-                            gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                            gfsolver::ToulouseSolver=EDToulouseSolver(64))
     M = _nbath(gfsolver)
     Es, Vsq, _ = _quad_nodes(f, μ, M)
     n = M + 1
@@ -69,10 +69,10 @@ end
 _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
 
 """
-    exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EigenSolver(64))
+    exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64))
         -> (GrassmannHybridizationMatrix, normdelta)
 
-ExactIF 严格 IF 核（实时 Keldysh 轮廓），元组返回 `(核, 归一常数)`——
+ExactEqualDistantKernel 严格 IF 核（实时 Keldysh 轮廓），元组返回 `(核, 归一常数)`——
 `exact_fermionic_Δt_cells` 的均匀网格便捷封装（cells = fill(t/N, N)，kicks = 1）。
 
 装配契约（金标准，`test/exact/fermionic_realtime.jl`）：紧凑 (ā,a) 装配 =
@@ -87,13 +87,13 @@ Schur，同 GTEMPO NativeExact `exactif_pipeline` 的证明配方）。条目为
 **有向指数系数**（无 conj 翻转）。
 """
 function exact_fermionic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
-                            μ::Real=0, gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                            μ::Real=0, gfsolver::ToulouseSolver=EDToulouseSolver(64))
     return exact_fermionic_Δt_cells(f; β=β, cells=fill(Float64(t) / N, N), μ=μ,
                                     gfsolver=gfsolver)
 end
 
 """
-    exact_fermionic_Δt_cells(f; β, cells, μ=0, gfsolver=EigenSolver(64), kicks)
+    exact_fermionic_Δt_cells(f; β, cells, μ=0, gfsolver=EDToulouseSolver(64), kicks)
         -> (GrassmannHybridizationMatrix, normdelta)
 
 实时 Keldysh 严格核的逐 cell 调度版：`cells[k]` = 第 k 个 Keldysh cell 的演化
@@ -120,7 +120,7 @@ order 1 δt¹，两阶真实分离）。BB 消元走块结构求解（O(N·K²·
 function exact_fermionic_Δt_cells(f::AbstractBoundedFunction;
                                   β::Real, cells::AbstractVector{<:Real},
                                   μ::Real=0,
-                                  gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64),
+                                  gfsolver::ToulouseSolver=EDToulouseSolver(64),
                                   kicks::AbstractVector{<:Number}=ones(length(cells)))
     length(kicks) == length(cells) ||
         throw(DimensionMismatch("kicks 须与 cells 等长（每 gap 一个踢相位）"))
@@ -347,10 +347,10 @@ end
 # ------------------------------ 混合时间 ------------------------------ #
 
 """
-    exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EigenSolver(64))
+    exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64))
         -> (GrassmannHybridizationMatrix, normdelta)
 
-ExactIF 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
+ExactEqualDistantKernel 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
 `(核, 归一常数)`。轮廓**单环** τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→
 (−,1)→τ₁：τ cells（含结合 cell τ_{Nτ}→+₁）用 W^τ = e^{−δτ·h}，实时 ± cells
 用 W^t = e^{−iδt·h}（− 支共轭），(+,Nt+1)→(−,Nt+1) 闭合边带费米迹负号、
@@ -375,7 +375,7 @@ BB 消元走环状块结构求解（单环仿射前推，O(n·K²·Limp + K³)�
 """
 function exact_fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                             Nt::Int, μ::Real=0, δτ::Real=β / Nτ,
-                            gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64),
+                            gfsolver::ToulouseSolver=EDToulouseSolver(64),
                             kicksτ::AbstractVector{<:Number}=ones(Nτ),
                             kickst::AbstractVector{<:Number}=ones(Nt))
     Nτ >= 1 || throw(ArgumentError("Nτ 至少为 1"))

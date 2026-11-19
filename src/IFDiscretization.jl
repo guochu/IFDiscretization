@@ -6,7 +6,7 @@ module IFDiscretization
 # 「离散 IF 怎么算」。统计（玻色/费米/BCS）由 bath 对象类型承担（Δτ/Δt/Δm 的
 # 第一个输入必须是 bath），核技术由 scheme 关键字承担：
 #   Δτ(bath; N=…, scheme=QuAPI())                    # 一阶 Trotter 冻结核
-#   Δτ(bath; N=…, scheme=ExactIF(EigenSolver(64)))   # 严格核（GL-M + 本征求解器）
+#   Δτ(bath; N=…, scheme=ExactEqualDistantKernel(EDToulouseSolver(64)))  # 严格核（ExactKernel 族，GL-M + 本征求解器）
 #
 # 本包由 QuAPI 忠实移植而来（kernel 装配逐字未动）；接口调整见
 # plan/migration-plan.md。dense / deprecated / exactfermionic(ExactGrassmannIF)
@@ -29,13 +29,13 @@ export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
 # 严格核（exact API，纯浴对象：签名同冻结核，无杂质信息；装配契约与
 # 金标准见 test/exact/fermionic_imagtime.jl 与 fermionic_realtime.jl）
-export ExactIF, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δt_cells, exact_fermionic_Δm
+export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δt_cells, exact_fermionic_Δm
 export exact_bosonic_Δτ, exact_bosonic_Δt, exact_bosonic_Δm
 export exact_bcs_Δτ, exact_bcs_Δt, exact_bcs_Δm
 
 # 离散方案与格林函数求解器
 export DiscretizationScheme, FrozenKernel, QuAPI
-export ToulouseGreenFunctionSolver, EigenSolver, AnalyticSolver
+export ToulouseSolver, EDToulouseSolver, AnaToulouseSolver
 
 # corr → 配对（杂交）矩阵层（GaussianStates 扩展的底座；稠密张量机器留 QuAPI.Dense）
 export basis, contour_ordering

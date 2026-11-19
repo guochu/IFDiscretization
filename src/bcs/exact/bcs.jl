@@ -26,14 +26,14 @@
 # 谱离散：GL-M 节点（求积节点，M→∞ 收敛连续谱）；ε_d 不入核（调用方
 # kick 簿记，同费米 exactif）。μ=0 convention（μ≠0 抛 ArgumentError）。
 #
-# 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseGreenFunctionSolver
-# = EigenSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
+# 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseSolver
+# = EDToulouseSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
 # 逐位一致。
 # =============================================================================
 
 "Nambu/BdG 严格数据：𝓗₀（厄米）本征分解 + M₀ + imp 槽位。μ≠0 拒绝。"
 function bcs_nambu_data(f::AbstractBoundedFunction, Δ::Number; β::Real, μ::Real=0,
-                        gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                        gfsolver::ToulouseSolver=EDToulouseSolver(64))
     iszero(μ) || throw(ArgumentError("BCS 浴只支持 μ=0（μ = $μ）"))
     M = _nbath(gfsolver)
     Es, Vsq, _ = _quad_nodes(f, 0.0, M)
@@ -65,13 +65,13 @@ bcs_Gtau_neg(D, τ::Real, p::Int, q::Int, β::Real) =
     -bcs_Gtau(D, β + τ, p, q)
 
 """
-    exact_bcs_Δτ(f; β, N, Δ, μ=0, gfsolver=EigenSolver(64))
+    exact_bcs_Δτ(f; β, N, Δ, μ=0, gfsolver=EDToulouseSolver(64))
         -> BCSCorrelationFunction{ImagCorrelationFunction}
 
 严格装配虚时核：四分量环 𝒢_pq(τ_m)（点值 + KMS/δ 跳变闭式），τ_m=(d−1)δτ。
 """
 function exact_bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, Δ::Number=0,
-                      μ::Real=0, gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                      μ::Real=0, gfsolver::ToulouseSolver=EDToulouseSolver(64))
     D = bcs_nambu_data(f, Δ; β=β, μ=μ, gfsolver=gfsolver)
     δτ = β / N
     Gpt(τ, p, q) = τ > 0 ? bcs_Gtau(D, τ, p, q) : bcs_Gtau_neg(D, τ, p, q, β)
@@ -89,7 +89,7 @@ function exact_bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, Δ::Number
 end
 
 """
-    exact_bcs_Δt(f; β, N, t, Δ, μ=0, gfsolver=EigenSolver(64))
+    exact_bcs_Δt(f; β, N, t, Δ, μ=0, gfsolver=EDToulouseSolver(64))
         -> BCSCorrelationFunction{RealCorrelationFunction}
 
 严格装配实时核：轮廓收缩 C(v,w)（greater=M₀ 权 / lesser=(I−M₀) 权 + 反对易
@@ -97,7 +97,7 @@ end
 """
 function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
                       Δ::Number=0, μ::Real=0,
-                      gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                      gfsolver::ToulouseSolver=EDToulouseSolver(64))
     D = bcs_nambu_data(f, Δ; β=β, μ=μ, gfsolver=gfsolver)
     δt = t / N
     n1 = N + 1
@@ -133,7 +133,7 @@ function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
 end
 
 """
-    exact_bcs_Δm(f; β, Nτ, t, Nt, Δ, μ=0, gfsolver=EigenSolver(64))
+    exact_bcs_Δm(f; β, Nτ, t, Nt, Δ, μ=0, gfsolver=EDToulouseSolver(64))
         -> BCSCorrelationFunction{MixedCorrelationFunction}
 
 严格装配混合核：ττ = Δτ 环数据；Keldysh 交叉 = Δt 同构造；τ-交叉闭式
@@ -142,7 +142,7 @@ G₊τ[a+1,i] = [e^{−τᵢ𝓗}M₀e^{−i𝓗t_a}]_{imp}（环归一化有界
 """
 function exact_bcs_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                       Nt::Int, Δ::Number=0, μ::Real=0,
-                      gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
+                      gfsolver::ToulouseSolver=EDToulouseSolver(64))
     D = bcs_nambu_data(f, Δ; β=β, μ=μ, gfsolver=gfsolver)
     δτ = β / Nτ
     δt = t / Nt

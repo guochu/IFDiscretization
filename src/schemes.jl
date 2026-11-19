@@ -3,10 +3,11 @@
 #   DiscretizationScheme
 #   ├── FrozenKernel
 #   │   └── QuAPI()                    # 一阶 Trotter 冻结核
-#   └── ExactIF(gfsolver)              # 严格核（exact API 实装）
-#       └── gfsolver::ToulouseGreenFunctionSolver
-#           ├── EigenSolver(nbath)     # 本征路线（exactif 现行）
-#           └── AnalyticSolver()       # 解析路线（扩展位）
+#   └── ExactKernel                    # 严格核抽象族（exact API 实装）
+#       └── ExactEqualDistantKernel(solver)   # 等距离散严格核（现行）
+#           └── solver::ToulouseSolver
+#               ├── EDToulouseSolver(nbath)   # 本征路线（现行）
+#               └── AnaToulouseSolver()       # 解析路线（扩展位）
 
 """
     abstract type DiscretizationScheme end
@@ -31,50 +32,61 @@ struct QuAPI <: FrozenKernel end
 # struct QuAPI2 <: FrozenKernel end
 
 """
-    abstract type ToulouseGreenFunctionSolver end
+    abstract type ToulouseSolver end
 
 Toulouse 型严格核（单杂质能级 + 数守恒浴，U = 0）的格林函数求解器抽象。
-exactif 机器的语义边界：杂质模 + 数守恒浴的二次型链。
+严格核机器的语义边界：杂质模 + 数守恒浴的二次型链。
 """
-abstract type ToulouseGreenFunctionSolver end
+abstract type ToulouseSolver end
 
 """
-    EigenSolver(nbath)
+    EDToulouseSolver(nbath)
 
 本征求解器：把浴 + 杂质单粒子 h₀ 组装为 (nbath+1)×(nbath+1) 矩阵后
 `eigen(Hermitian(h0))`，传播子用本征相位闭式（exactif/test/exactif_api.jl
 的 `_bath_eig` 路线）。
 
 - `nbath`：浴模式数（连续谱 = Gauss–Legendre–M 求积节点数 M，
-  exactif 现默认 M = 64；离散谱 = 谱线数目）。
+  现行默认 M = 64；离散谱 = 谱线数目）。
 """
-struct EigenSolver <: ToulouseGreenFunctionSolver
+struct EDToulouseSolver <: ToulouseSolver
     nbath::Int
 end
 
 """
-    AnalyticSolver()
+    AnaToulouseSolver()
 
 解析求解器（扩展位，待实装）：接 ImpurityModelBase 中 Toulouse 模型的
-解析解，作为 EigenSolver 的零求积误差参照/替代。
+解析解，作为 EDToulouseSolver 的零求积误差参照/替代。
 """
-struct AnalyticSolver <: ToulouseGreenFunctionSolver end
+struct AnaToulouseSolver <: ToulouseSolver end
 
 # 其他求解器扩展位：矩阵指数直解（exp(-iΔt·h)）、Krylov / Chebyshev 等。
 
 "求解器 → GL-M 求积节点数（浴模式数）。"
-_nbath(s::EigenSolver) = s.nbath
-_nbath(::AnalyticSolver) =
-    error("AnalyticSolver 待实装：接 ImpurityModelBase Toulouse 解析解")
+_nbath(s::EDToulouseSolver) = s.nbath
+_nbath(::AnaToulouseSolver) =
+    error("AnaToulouseSolver 待实装：接 ImpurityModelBase Toulouse 解析解")
 
 """
-    ExactIF(gfsolver)
-    ExactIF()  # = ExactIF(EigenSolver(64))，exactif 现行默认
+    abstract type ExactKernel <: DiscretizationScheme end
 
-严格离散影响泛函核方案，格林函数由内插求解器 `gfsolver` 提供。
-exact API 实装自 QuAPI/exactif/test 收编（kernel 装配逐字未动）。
+严格离散影响泛函核方案抽象族（exact API：`exact_*_Δτ/Δt/Δm` 装配级严格核）。
+族内按离散化调度区分：等距格点（现行 ExactEqualDistantKernel）、
+非均匀/逐 cell 调度（扩展位）等。
 """
-struct ExactIF{G <: ToulouseGreenFunctionSolver} <: DiscretizationScheme
-    gfsolver::G
+abstract type ExactKernel <: DiscretizationScheme end
+
+"""
+    ExactEqualDistantKernel(solver)
+    ExactEqualDistantKernel()  # = ExactEqualDistantKernel(EDToulouseSolver(64))，现行默认
+
+等距离散的严格影响泛函核方案（原 `ExactEqualDistantKernel`），格林函数由内插求解器
+`solver` 提供。exact API 实装自 QuAPI/exactif/test 收编（kernel 装配逐字
+未动）；2026-11-19 起装配契约升级为带踢 Schur + 元组返回
+（金标准 test/exact/fermionic_{imagtime,realtime,mixedtime}.jl）。
+"""
+struct ExactEqualDistantKernel{S <: ToulouseSolver} <: ExactKernel
+    solver::S
 end
-ExactIF() = ExactIF(EigenSolver(64))
+ExactEqualDistantKernel() = ExactEqualDistantKernel(EDToulouseSolver(64))

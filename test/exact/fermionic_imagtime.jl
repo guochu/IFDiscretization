@@ -1,5 +1,5 @@
 # =============================================================================
-# exact/fermionic_imagtime.jl —— 费米虚时 ExactIF 金标准
+# exact/fermionic_imagtime.jl —— 费米虚时 ExactEqualDistantKernel 金标准
 #
 # 三层断言（严格性金标准，2026-11-18 起放弃 ED 主参照，改高效路线）：
 #
@@ -101,7 +101,7 @@ const β = 2.0
 const εd = 0.3
 const t_half = 1.0
 
-@testset "费米虚时 ExactIF 金标准（exact_fermionic_Δτ vs 直接 Trotter vs 严格解）" begin
+@testset "费米虚时 ExactEqualDistantKernel 金标准（exact_fermionic_Δτ vs 直接 Trotter vs 严格解）" begin
 
     # ---- T2 定义锚：2 模 bath，单粒子直接路线 == Fock ED（钉约定） ----
     @testset "T2 定义锚：单粒子直接路线 == Fock ED（2 模）" begin
@@ -143,7 +143,7 @@ const t_half = 1.0
         h0 = coupled_h0(f, 32)
         for N in (8, 32, 64), order in (1, 2)
             Zd, nd, Gd = direct_trotter_sp(h0, εd, order, N, β)
-            Zs, ns, Gs = strictif_assembly(f, εd, N, β, IFD.EigenSolver(32))
+            Zs, ns, Gs = strictif_assembly(f, εd, N, β, IFD.EDToulouseSolver(32))
             # 严格 IF 路线的 Z = normdelta·Pf(B)（归一随核对象）；直接路线
             # Z = (−1)^{nN}det(A)。Z 随模式数指数大（~2ⁿᴹ 量级），断言用相对容差
             Zass = Zs
@@ -188,7 +188,7 @@ const t_half = 1.0
             _, n2, G2 = direct_trotter_sp(h0, εd, 2, N, β)
             @test abs(n1 - n2) < 1e-12
             @test maximum(abs.(G1 .- G2)) < 1e-12
-            Zs1, ns1, Gs1 = strictif_assembly(f, εd, N, β, IFD.EigenSolver(M))
+            Zs1, ns1, Gs1 = strictif_assembly(f, εd, N, β, IFD.EDToulouseSolver(M))
             @test abs(ns1 - n1) < 1e-10
             @test maximum(abs.(Gs1 .- G1)) < 1e-10
             e = maximum(abs(G1[m+1] - Gdisc(τ)) for (m, τ) in ((N ÷ 4, β / 4), (N ÷ 2, β / 2)))
@@ -210,4 +210,4 @@ const t_half = 1.0
     end
 
 end
-println("费米虚时 ExactIF 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解）")
+println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解）")

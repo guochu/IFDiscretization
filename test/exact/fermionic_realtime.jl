@@ -1,5 +1,5 @@
 # =============================================================================
-# exact/fermionic_realtime.jl —— 费米实时 ExactIF 金标准
+# exact/fermionic_realtime.jl —— 费米实时 ExactEqualDistantKernel 金标准
 #
 # 装配契约（2026-11-18 定谳，test 头注历史：εd≠0 装配 bug 三轮排查——
 # IB 行缩放（Z 出虚部）→ 链条目顶点移位（Z 实但偏离 1）→ 带踢 Schur 定谳）：
@@ -100,7 +100,7 @@ function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int)
     gates, cells = pair_grid(order, N, δt)
     kicks = [exp(-im * g * εd) for g in gates]
     kernel, ndlt = exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=0.0,
-                                            gfsolver=IFD.EigenSolver(M), kicks=kicks)
+                                            gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
     A = assemble(kernel.Δ, length(gates))
     Z = ndlt * det(A)
     return real(Z), real(nbar_vacuum(A, Z, length(gates)))
@@ -153,7 +153,7 @@ const β = 2.0
 const t_T = 0.8
 const εd = 0.3
 
-@testset "费米实时 ExactIF 金标准（带踢 Schur 契约 vs 门序列 ED）" begin
+@testset "费米实时 ExactEqualDistantKernel 金标准（带踢 Schur 契约 vs 门序列 ED）" begin
 
     f2 = bounded(ω -> 1.0, -1.0, 1.0)                  # 2 模离散参照
     f16 = semicircular(1.0)                            # 连续谱（GL-16）
@@ -213,7 +213,7 @@ const εd = 0.3
     @testset "uniform API（exact_fermionic_Δt）：εd=0 机器锚" begin
         for N in (3, 4)
             kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
-                                              gfsolver=IFD.EigenSolver(2))
+                                              gfsolver=IFD.EDToulouseSolver(2))
             A = assemble(kernel.Δ, N)
             Z = ndlt * det(A)
             @test abs(Z - 1) < 1e-12
@@ -246,7 +246,7 @@ const εd = 0.3
         # εd≠0：Z 实数（虚部机器零）但偏离 1 O(δt)——顶点移位 cell 非幺正的方案性质
         for N in (3, 4)
             kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
-                                              gfsolver=IFD.EigenSolver(2))
+                                              gfsolver=IFD.EDToulouseSolver(2))
             A = assemble(kernel.Δ, N)
             for g in 1:N
                 x = exp(-im * (t_T / N) * εd)
@@ -276,4 +276,4 @@ const εd = 0.3
     end
 
 end
-println("费米实时 ExactIF 金标准通过 ✓（Z 证书 + T2 ED 锚 + T1 对齐 + T3 标度）")
+println("费米实时 ExactEqualDistantKernel 金标准通过 ✓（Z 证书 + T2 ED 锚 + T1 对齐 + T3 标度）")

@@ -73,14 +73,14 @@ bC = BCSBath(fF, β=β, μ=0.0, Δ=0.4)
     @test samebits(IFD.Δτ(bB, N=6, scheme=IFD.QuAPI()), QuAPI.Δτ(bB, N=6))
 end
 
-@testset "exact 路线（EigenSolver=64）对拍 exactif 原版语义" begin
+@testset "exact 路线（EDToulouseSolver=64）对拍 exactif 原版语义" begin
     # exactif 原版函数不在 QuAPI 模块内（研究目录），此处以相同谱闭式性质
     # 自检 + 与 IFD.exact_* 直接调用互证（gfsolver 接口同参逐位）。
-    e = IFD.ExactIF(IFD.EigenSolver(64))
+    e = IFD.ExactEqualDistantKernel(IFD.EDToulouseSolver(64))
     @test IFD.Δτ(bB, N=5, scheme=e) ==
-          IFD.exact_bosonic_Δτ(fB, β=β, N=5, μ=0.2, gfsolver=IFD.EigenSolver(64))
+          IFD.exact_bosonic_Δτ(fB, β=β, N=5, μ=0.2, gfsolver=IFD.EDToulouseSolver(64))
     @test IFD.Δτ(bF, N=5, scheme=e) ==
-          IFD.exact_fermionic_Δτ(fF, β=β, N=5, μ=0.3, gfsolver=IFD.EigenSolver(64))
+          IFD.exact_fermionic_Δτ(fF, β=β, N=5, μ=0.3, gfsolver=IFD.EDToulouseSolver(64))
 end
 
 @testset "腿指标访问器：与 QuAPI 逐元素对拍（含 2026-11-03 BCS 有向指数系数语义）" begin

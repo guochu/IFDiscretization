@@ -10,7 +10,7 @@ include("exact/exact.jl")
 
 BCS（超导）浴虚时 hybridization function。`scheme::DiscretizationScheme`
 选核技术：`QuAPI()`（默认，Bogoliubov 系数 + fermionic_Δτ 冻结核）、
-`ExactIF(gfsolver)`（严格核，Nambu/BdG 本征闭式；只支持 μ=0）。
+`ExactEqualDistantKernel(gfsolver)`（严格核，Nambu/BdG 本征闭式；只支持 μ=0）。
 返回 `BCSCorrelationFunction`。β、μ、Δ 从 bath 对象读取。
 """
 Δτ(bath::AbstractBCSBath; N::Int, δτ::Real=bath.β/N,
@@ -19,8 +19,8 @@ BCS（超导）浴虚时 hybridization function。`scheme::DiscretizationScheme`
 _bcs_Δτ_dispatch(::QuAPI, bath::AbstractBCSBath, N::Int, δτ::Real) =
     bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ, δτ=δτ)
 # BCS 严格核内定 δτ = β/N（原 exact API 无 δτ 旋钮，忠实保留）
-_bcs_Δτ_dispatch(s::ExactIF, bath::AbstractBCSBath, N::Int, δτ::Real) =
-    exact_bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ; gfsolver=s.gfsolver)
+_bcs_Δτ_dispatch(s::ExactEqualDistantKernel, bath::AbstractBCSBath, N::Int, δτ::Real) =
+    exact_bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ; gfsolver=s.solver)
 
 """
     Δt(bath::AbstractBCSBath; N, t, scheme=QuAPI())
@@ -33,8 +33,8 @@ scheme 语义同 `Δτ`。返回 `BCSCorrelationFunction`。
 
 _bcs_Δt_dispatch(::QuAPI, bath::AbstractBCSBath, N::Int, t::Real) =
     bcs_Δt(bath.spectrum, β=bath.β, μ=bath.μ, Δ=bath.Δ, N=N, t=t)
-_bcs_Δt_dispatch(s::ExactIF, bath::AbstractBCSBath, N::Int, t::Real) =
-    exact_bcs_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ, Δ=bath.Δ; gfsolver=s.gfsolver)
+_bcs_Δt_dispatch(s::ExactEqualDistantKernel, bath::AbstractBCSBath, N::Int, t::Real) =
+    exact_bcs_Δt(bath.spectrum, β=bath.β, N=N, t=t, μ=bath.μ, Δ=bath.Δ; gfsolver=s.solver)
 
 """
     Δm(bath::AbstractBCSBath; Nτ, t, Nt, δτ=bath.β/Nτ, scheme=QuAPI())
@@ -47,5 +47,5 @@ scheme 语义同 `Δτ`。返回 `BCSCorrelationFunction`。
 
 _bcs_Δm_dispatch(::QuAPI, bath::AbstractBCSBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
     bcs_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Δ=bath.Δ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
-_bcs_Δm_dispatch(s::ExactIF, bath::AbstractBCSBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
-    exact_bcs_Δm(bath.spectrum, β=bath.β, Nτ=Nτ, t=t, Nt=Nt, μ=bath.μ, Δ=bath.Δ, δτ=δτ; gfsolver=s.gfsolver)
+_bcs_Δm_dispatch(s::ExactEqualDistantKernel, bath::AbstractBCSBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
+    exact_bcs_Δm(bath.spectrum, β=bath.β, Nτ=Nτ, t=t, Nt=Nt, μ=bath.μ, Δ=bath.Δ, δτ=δτ; gfsolver=s.solver)
