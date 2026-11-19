@@ -73,6 +73,7 @@ include("quapi/secondorder/runtests.jl")
 
 include("exact/fermionic_imagtime.jl")
 include("exact/fermionic_realtime.jl")
+include("exact/fermionic_mixedtime.jl")
 
 ### 存档回归：一阶/二阶装配基准 vs 存档 CSV 逐字节（数值移植的最终防线；
 ###   存档数据自 QuAPI/test/quapi/archive_* 原样拷入；耗时较长）
@@ -106,8 +107,10 @@ include("quapi/archive_regression.jl")
     @test xB.uu == yB.uu && xB.dd == yB.dd && xB.ud == yB.ud && xB.du == yB.du
     @test IFD.Δt(bB, N=4, t=0.8, scheme=e) ==
           IFD.exact_bosonic_Δt(fB, β=β, N=4, t=0.8, μ=0.2, gfsolver=IFD.EigenSolver(32))
-    @test IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e) ==
-          IFD.exact_fermionic_Δm(fF, β=β, Nτ=3, Nt=3, t=0.6, μ=0.3, gfsolver=IFD.EigenSolver(32))
+    xM = IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)  # 核容器无 ==，逐字段比
+    yM = IFD.exact_fermionic_Δm(fF, β=β, Nτ=3, Nt=3, t=0.6, μ=0.3,
+                                gfsolver=IFD.EigenSolver(32))
+    @test xM.Δ == yM[1].Δ && xM.basis == yM[1].basis
     # 核技术与统计正交：QuAPI() 与 ExactIF() 结果不同（同为 ImagCorrelationFunction）
     @test IFD.Δτ(bF, N=5) != IFD.Δτ(bF, N=5, scheme=e)
 end

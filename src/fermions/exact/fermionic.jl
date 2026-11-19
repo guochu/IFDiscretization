@@ -3,12 +3,12 @@
 #
 # 纯浴对象契约（2026-11-18 换代）：三个入口签名与冻结核 fermionic_Δτ/Δt/Δm
 # 一致，不含任何杂质信息（无 ε_d、无劈分阶数）——杂质 kick 相位经恒等式
-# Δ_IF(x) = x·Δ_IF(1)（机器精度）线性析出到装配侧系统骨架，下游换核是
-# 机械替换。虚时核的严格性：反周期环单粒子矩阵的 Schur 消浴
-#（test/exact/strict_kernel.jl 金标准：orders 1/2 × N=2..8 的 Z/n̄/G 与
-# 同阶直接 Trotter 演化逐位一致）；实时/混合核当前为点值严格轮廓收缩
-#（exactif 族约定，非装配配对核——虚时负对照定量：点值冒充配对核差
-# O(0.1)；两轮廓的装配级严格核待后续步骤落地）。
+# Δ_IF(x) = x·Δ_IF(1)（虚时，机器精度）或显式 kicks 接口（实时/混合，带踢
+# Schur）析出到装配侧系统骨架，下游换核是机械替换。三轮廓装配级契约：
+#   Δτ：反周期环单粒子矩阵 Schur（fermionic_imagtime.jl 金标准）；
+#   Δt ：Keldysh 开线带踢 Schur（fermionic_realtime.jl 金标准，Z ≡ 1 机器）；
+#   Δm ：Kadanoff–Baym 单环带踢 Schur（fermionic_mixedtime.jl 金标准，
+#        Keldysh 段算符层面精确求和相消 ⟹ Z = τ 环乘积的精确迹）。
 # =============================================================================
 
 # ------------------------------ 虚时 ------------------------------ #
@@ -348,72 +348,231 @@ end
 
 """
     exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EigenSolver(64))
-        -> MixedCorrelationFunction
+        -> (GrassmannHybridizationMatrix, normdelta)
 
-L 形（Kadanoff-Baym）轮廓的连续谱严格核。分支序：τ 支（0→β，Nτ 节点）
-最前，其后 Keldysh 部分与实时版逐位相同。九块：
-  G₊₋/G₋₊：与 exact_fermionic_Δt 的交叉块一致；
-  Gττ：与 exact_fermionic_Δτ 一致（环 Toeplitz）；
-  G₊τ (Nt+1)×Nτ、Gτ₊ Nτ×(Nt+1)：L 轮廓 τ-交叉收缩——τ 顶点的收缩向量
-  = e^{−(β−τᵢ)h₀}e₁（W(t)W†(t)=I 使 Keldysh 闭环相消）；轮廓序 τ 最早
-  ⟹ ⟨C_A A_τ⟩ = Σ n̄ c_a c̄_τ、⟨A_a C_τ⟩ = Σ (1−n̄) c̄_a c_τ。
-  (−,τ)/(τ,−) 的 Keldysh 相对负号由 branch 规则承担（存 G₊τ/Gτ₊）。
+ExactIF 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
+`(核, 归一常数)`。轮廓**单环** τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→
+(−,1)→τ₁：τ cells（含结合 cell τ_{Nτ}→+₁）用 W^τ = e^{−δτ·h}，实时 ± cells
+用 W^t = e^{−iδt·h}（− 支共轭），(+,Nt+1)→(−,Nt+1) 闭合边带费米迹负号、
+(−,1)→τ₁ 环回边权 1（热演化在 τ 段显式进行，无热边 r）。
+
+腿基同冻结核（`contour_ordering` 混合序：τ 节点 1..Nτ 后接 Keldysh 节点
+(+,jj)/(−,jj)，每节点 (a, ā) 相邻），可直接替换 `fermionic_Δm` 的 Δ。
+
+kicks：`kicksτ[j]`（长度 Nτ：轮廓序 τ cells——j = 1..Nτ−1 为内部 cell
+τⱼ→τⱼ₊₁、j = Nτ 为结合 cell τ_{Nτ}→+₁）与 `kickst[jj]`（长度 Nt：+ cells；
+− cells 自动取共轭伴随）为各 cell 的杂质门相位——
+带踢复合同实时版（+ 方向 D(x)·W 杂质输出行 ×x，− 方向 W†D† 杂质输入列
+×x̄）。**Keldysh 段在算符层面精确求和相消（含任意幺正踢）：P₊P₋ = I**，
+⟹ 全迹收缩 Z = τ 环踢乘积的精确迹（与离散化无关的机器恒等式）。
+
+**normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath**（n = Nτ + 2(Nt+1) 轮廓节点数；
+折叠 Berezin 符号 + impurity 折叠，K=1/K=2 × 奇偶 n 四点机器钉定）。装配契约（金标准，`test/exact/fermionic_mixedtime.jl`）：
+装配 = 测度 −1 + 单位链 + 两条闭合边（Keldysh 迹 −1、环回 +1）+ data.Δ ⟹
+**Z = normdelta·det(装配) == Tr_Fock[τ 环踢乘积]/Z_bath（任意 kicks 机器精确）**。
+BB 消元走环状块结构求解（单环仿射前推，O(n·K²·Limp + K³)；稠密参照
+`_exrt_mixed_kernel_dense`）。
 """
 function exact_fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                             Nt::Int, μ::Real=0, δτ::Real=β / Nτ,
-                            gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64))
-    δt = t / Nt
-    M = _nbath(gfsolver)
-    Es, Vsq, _ = _quad_nodes(f, μ, M)
-    ev = _bath_eig(Es, Vsq)
-    W(θ) = θ == 0 ? Matrix{ComplexF64}(I, M+1, M+1) :
-           ev.vectors * Diagonal(exp.(-im * ev.values .* θ)) * ev.vectors'
-    Wd(θ) = θ == 0 ? Matrix{ComplexF64}(I, M+1, M+1) :
-            ev.vectors * Diagonal(exp.(im * ev.values .* θ)) * ev.vectors'
-    n̄ = vcat([0.5], [1 / (1 + exp(β * e)) for e in Es])
-    n1, e1 = Nt + 1, vcat([1.0], zeros(M))
-    # 收缩向量：forward a、backward a 同 Δt
-    cfwd = [Wd(t) * W(t - a * δt) * e1 for a in 0:Nt]
-    cbwd = [Wd(a * δt) * e1 for a in 0:Nt]
-    posf(a) = Nτ + a
-    posb(a) = Nτ + Nt + (Nt - a)
-    # τ-交叉块（本征基谱闭式，2 模多体 4 点逐位锚定 mx_fix12）：
-    #   G₊τ[a+1,i] = Σₚ a2ₚ e^{−λₚτᵢ} e^{−iλₚt_a} fₚ   （粒子线到 C 端相位）
-    #   Gτ₊[i,a+1] = −(G₊τ)ᵀ（μ=0 反对称）。
-    #   注：V→0 时 G₊τ → ½（杂质自线）——系统腿结构，由调用方测度抵消
-    #   （同 firstorder README §2.2 的 c-number 抵消簿记）。
-    a2 = abs2.(ev.vectors[1, :])
-    fk = [1 / (1 + exp(-β * ev.values[p])) for p in 1:M+1]
-    G₊τ = [sum(a2[p] * exp(-ev.values[p] * ((i - 1) * δτ)) *
-               exp(-im * ev.values[p] * (a * δt)) * fk[p] for p in 1:M+1)
-           for a in 0:Nt, i in 1:Nτ]
-    # μ=0 费米反对称 ζⱼₖ = −ζₖⱼᵀ（物理要求，docstring 语义）：
-    Gτ₊ = μ == 0 ? Matrix(-transpose(G₊τ)) :
-           [sum(a2[p] * exp(-ev.values[p] * ((i - 1) * δτ)) *
-                exp(im * ev.values[p] * (a * δt)) * fk[p] for p in 1:M+1)
-            for i in 1:Nτ, a in 0:Nt]
-    # Keldysh 交叉块（与 Δt 同构造）
-    function pair(v, w)
-        cv, cw = v ≤ n1 ? cfwd[v] : cbwd[v - n1], w ≤ n1 ? cfwd[w] : cbwd[w - n1]
-        pv = v ≤ n1 ? posf(v - 1) : posb(v - n1 - 1)
-        pw = w ≤ n1 ? posf(w - 1) : posb(w - n1 - 1)
-        if pv == pw
-            return sum((1 - n̄[l]) * conj(cv[l]) * cw[l] for l in 2:M+1)
-        elseif pv > pw
-            return sum(n̄[l] * cv[l] * conj(cw[l]) for l in 2:M+1)
-        else
-            return sum((1 - n̄[l]) * conj(cv[l]) * cw[l] for l in 2:M+1)
+                            gfsolver::ToulouseGreenFunctionSolver=EigenSolver(64),
+                            kicksτ::AbstractVector{<:Number}=ones(Nτ),
+                            kickst::AbstractVector{<:Number}=ones(Nt))
+    Nτ >= 1 || throw(ArgumentError("Nτ 至少为 1"))
+    Nt >= 1 || throw(ArgumentError("Nt 至少为 1"))
+    length(kicksτ) == Nτ ||
+        throw(DimensionMismatch("kicksτ 须长 Nτ（轮廓序 τ cells：Nτ−1 内部 + 结合）"))
+    length(kickst) == Nt ||
+        throw(DimensionMismatch("kickst 须长 Nt（+ cells）"))
+    _mixed_kernel(f, β, Nτ, t, Nt, Float64(δτ), μ, _nbath(gfsolver),
+                  ComplexF64.(kicksτ), ComplexF64.(kickst); dense=false)
+end
+
+# 装配本体（dense=false 结构化求解 / dense=true 稠密参照）
+function _mixed_kernel(f::AbstractBoundedFunction, β::Real, Nτ::Int, t::Real, Nt::Int,
+                       δτ::Float64, μ::Real, M::Int,
+                       kicksτ::Vector{ComplexF64}, kickst::Vector{ComplexF64};
+                       dense::Bool)
+    Es, Vsq, wΓ = _quad_nodes(f, μ, M)
+    keep = wΓ .> 0
+    εs = Es[keep]
+    Vs = Vsq[keep]
+    K = length(εs)
+    K >= 1 || throw(ArgumentError("谱在支撑上的积分为零（或非正）"))
+    _W(step, sgn) = begin
+        h = zeros(ComplexF64, K + 1, K + 1)
+        for k in 1:K
+            h[1, k+1] = h[k+1, 1] = Vs[k]
+            h[k+1, k+1] = εs[k]
+        end
+        exp(sgn * step .* h)
+    end
+    Wτ = _W(δτ, -1.0 + 0.0im)                    # 虚时 cell（含结合 cell 共用）
+    Wt = _W(t / Nt, -1.0im)                      # 实时 cell
+    n = Nτ + 2 * (Nt + 1)                        # 轮廓节点数（链序）
+    ipos(c, ā) = 2 * c - (ā ? 0 : 1)             # 杂质腿（a = 2c−1, ā = 2c）
+    bidx(k, c) = (k - 1) * n + c                 # bath 配对槽（行 γ̄，列 γ）
+    Limp = 2n
+    Nb = K * n
+    II = zeros(ComplexF64, Limp, Limp)
+    IB = zeros(ComplexF64, Limp, Nb)
+    BI = zeros(ComplexF64, Nb, Limp)
+    BB = dense ? zeros(ComplexF64, Nb, Nb) : Matrix{ComplexF64}(undef, 0, 0)
+    for c in 1:n                                 # Berezin 测度
+        II[ipos(c, true), ipos(c, false)] -= 1
+        dense && for k in 1:K
+            BB[bidx(k, c), bidx(k, c)] -= 1
         end
     end
-    Gpm = [pair(n1 + j + 1, i + 1) for i in 0:Nt, j in 0:Nt]
-    Gmp = [pair(j + 1, n1 + i + 1) for i in 0:Nt, j in 0:Nt]
-    # ττ 块 = 环 Toeplitz（同 Δτ）
-    a2 = abs2.(ev.vectors[1, :])
-    G0(τ) = τ > 0 ?
-            sum(a2[p] * exp(-ev.values[p] * τ) / (1 + exp(-β * ev.values[p])) for p in 1:M+1) :
-            -sum(a2[p] * exp(-ev.values[p] * (τ + β)) / (1 + exp(-β * ev.values[p])) for p in 1:M+1)
-    Gττ = CorrelationMatrix(ComplexF64[real(G0((d - 1) * δτ)) for d in 1:Nτ],
-                            ComplexF64[real(G0(-(d - 1) * δτ)) for d in 1:Nτ])
-    Gττ = CorrelationMatrix(ComplexF64.(Gττ.ηⱼₖ), ComplexF64.(Gττ.ηₖⱼ))
-    return MixedCorrelationFunction(Gpm, Gmp, G₊τ, Gτ₊, Gττ)
+    # cell 边（dest ← src）：+ 方向 D(x)·W 杂质输出行 ×x；− 方向 W†D† 列 ×x̄
+    function edge!(cdest, csrc, W, x)
+        II[ipos(cdest, true), ipos(csrc, false)] += x * W[1, 1]
+        dense && for km in 1:K, kn in 1:K
+            BB[bidx(km, cdest), bidx(kn, csrc)] += W[km+1, kn+1]
+        end
+        for km in 1:K
+            IB[ipos(cdest, true), bidx(km, csrc)] += x * W[1, km+1]
+            BI[bidx(km, cdest), ipos(csrc, false)] += W[km+1, 1]
+        end
+    end
+    function edge_adj!(cdest, csrc, W, x)
+        # 伴随 W†D†：conj-转置 + 杂质输入列 ×x̄
+        xc = conj(x)
+        II[ipos(cdest, true), ipos(csrc, false)] += xc * conj(W[1, 1])
+        dense && for km in 1:K, kn in 1:K
+            BB[bidx(km, cdest), bidx(kn, csrc)] += conj(W[kn+1, km+1])
+        end
+        for km in 1:K
+            IB[ipos(cdest, true), bidx(km, csrc)] += conj(W[km+1, 1])
+            BI[bidx(km, cdest), ipos(csrc, false)] += xc * conj(W[1, km+1])
+        end
+    end
+    for c in 2:Nτ                               # τ 内部 cells
+        edge!(c, c - 1, Wτ, kicksτ[c - 1])
+    end
+    edge!(Nτ + 1, Nτ, Wτ, kicksτ[Nτ])           # 结合 cell（τ_Nτ → β ≡ +₁）
+    for jj in 1:Nt                              # + cells（cp(jj) → cp(jj+1)）
+        edge!(Nτ + 2jj + 1, Nτ + 2jj - 1, Wt, kickst[jj])
+    end
+    for jj in 1:Nt                              # − cells（cm(jj+1) → cm(jj)，后向）
+        edge_adj!(Nτ + 2jj, Nτ + 2jj + 2, Wt, kickst[jj])
+    end
+    for k in 1:K                                # bath 闭合边与环回边
+        dense && begin
+            BB[bidx(k, Nτ + 2Nt + 2), bidx(k, Nτ + 2Nt + 1)] += -1   # 费米迹
+            BB[bidx(k, 1), bidx(k, Nτ + 2)] += 1                     # (−,1)→τ₁
+        end
+    end
+    # 杂质轮廓闭合边（Schur 前，每腿一次）：Keldysh 迹负号 + 环回单位
+    II[ipos(Nτ + 2Nt + 2, true), ipos(Nτ + 2Nt + 1, false)] += -1
+    II[ipos(1, true), ipos(Nτ + 2, false)] += 1
+    # 消浴：结构化（环）或稠密参照（混合轮廓无热边——τ 段显式演化）
+    Wbτ = Wτ[2:end, 2:end]
+    Wbt = Wt[2:end, 2:end]
+    if dense
+        X = BB \ BI
+        detBB = det(BB)
+    else
+        X, detBB = _exrt_schur_mixed_cyclic(Wbτ, Wbt, Nτ, Nt, BI, K)
+    end
+    Mt = II - IB * X
+    # 单位骨架：测度 + 沿轮廓单位链 + 两条闭合边
+    C0 = zeros(ComplexF64, Limp, Limp)
+    for c in 1:n
+        C0[ipos(c, true), ipos(c, false)] -= 1
+    end
+    C0[ipos(Nτ + 1, true), ipos(Nτ, false)] += 1
+    C0[ipos(Nτ + 2Nt + 2, true), ipos(Nτ + 2Nt + 1, false)] += -1
+    C0[ipos(1, true), ipos(Nτ + 2, false)] += 1
+    for c in 2:Nτ
+        C0[ipos(c, true), ipos(c - 1, false)] += 1
+    end
+    for jj in 1:Nt
+        C0[ipos(Nτ + 2jj + 1, true), ipos(Nτ + 2jj - 1, false)] += 1
+        C0[ipos(Nτ + 2jj, true), ipos(Nτ + 2jj + 2, false)] += 1
+    end
+    basis = GrassmannContourIndex[
+        vcat([GrassmannContourIndex(j, :τ, 1, c) for j in 1:Nτ for c in (false, true)],
+             [GrassmannContourIndex(jj, br, 1, c)
+              for jj in 1:Nt+1 for br in (:+, :-) for c in (false, true)])...]
+    Zb = prod(1 .+ exp.(-β .* εs))
+    # (−1)^{n(K+1)}：折叠 Berezin 符号 (−1)^{nK}（bath 侧，K = 模式数）
+    # × impurity 折叠 (−1)^n（本 det 收缩机器相对 QuAPI Zvalue 机器的约定差，
+    # K=1/Nτ=3 vs Nτ=2 四点机器钉定）
+    pref = (-1.0 + 0.0im)^(n * (K + 1)) * detBB / Zb
+    return GrassmannHybridizationMatrix(basis, Mt - C0), pref
+end
+
+# 稠密参照路径（机器等价性检验用）
+function _exrt_mixed_kernel_dense(f::AbstractBoundedFunction, β::Real, Nτ::Int, t::Real,
+                                  Nt::Int, δτ::Real, μ::Real, M::Int,
+                                  kicksτ::Vector{ComplexF64}, kickst::Vector{ComplexF64})
+    _mixed_kernel(f, β, Nτ, t, Nt, Float64(δτ), μ, M, kicksτ, kickst; dense=true)
+end
+
+"""
+混合轮廓 BB 的环状块结构求解（分配函数内部）。
+
+ bath 块沿轮廓构成**单环**（每行/列恰一个非对角块）：
+    1→2→…→Nτ→Nτ+1→Nτ+3→…→n−1→n→n−2→…→Nτ+2→1
+ 边块依次 [Wbτ×(Nτ−1), Wbτ(结合), Wbt×Nt, −I(迹), adj(Wbt)×Nt(逆序), +I(环回)]，
+ diag 全为 −I。环方向仿射前推解 BB·X = BI（O(n·K²·Limp + K³)）；
+ **det(BB) = (−1)^{Kn}·det(I_K − Π)**，Π = 环方向边块有序积 B[n]⋯B[1]。
+"""
+function _exrt_schur_mixed_cyclic(Wbτ::Matrix{ComplexF64}, Wbt::Matrix{ComplexF64},
+                                  Nτ::Int, Nt::Int, BI::Matrix{ComplexF64}, K::Int)
+    n = Nτ + 2 * (Nt + 1)
+    L = size(BI, 2)
+    # 环节点序 + 边块（edge i：v[i] → v[i+1]，v 环回）
+    cyc = collect(1:Nτ)
+    for jj in 1:(Nt + 1)
+        push!(cyc, Nτ + 2jj - 1)                # + 节点（奇段）
+    end
+    push!(cyc, n)                               # − 末节点（迹角入口）
+    for jj in (Nt+1):-1:2
+        push!(cyc, Nτ + 2jj - 2)                # − 节点（偶段，逆序）
+    end
+    @assert cyc[1] == 1 && length(cyc) == n
+    edges = Vector{Matrix{ComplexF64}}(undef, n)
+    for j in 2:Nτ
+        edges[j-1] = Wbτ
+    end
+    edges[Nτ] = Wbτ                             # 结合 cell（Nτ → Nτ+1）
+    for jj in 1:Nt                              # + 段：cyc[Nτ+jj] → cyc[Nτ+jj+1]
+        edges[Nτ + jj] = Wbt
+    end
+    edges[Nτ + Nt + 1] = -Matrix{ComplexF64}(I, K, K)   # 迹角（+ 末 → − 末）
+    for j in 1:Nt                                       # − 段（逆序 adj）
+        edges[Nτ + Nt + 1 + j] = adjoint(Wbt)
+    end
+    edges[n] = Matrix{ComplexF64}(I, K, K)           # 环回（Nτ+2 → 1）
+    # Y 视图（节点 → BI 块行）
+    Yv(v) = view(BI, (0:K-1) .* n .+ v, :)
+    # 仿射前推：X[v[i]] = A[i]·P + b[i]，P := X[1]
+    A = Vector{Matrix{ComplexF64}}(undef, n)
+    b = Vector{Matrix{ComplexF64}}(undef, n)
+    A[1] = Matrix{ComplexF64}(I, K, K)
+    b[1] = zeros(ComplexF64, K, L)
+    for i in 2:n
+        A[i] = edges[i-1] * A[i-1]
+        b[i] = edges[i-1] * b[i-1] - Matrix{ComplexF64}(Yv(cyc[i]))
+    end
+    # 一致性（节点 1 方程）：X[1] = edges[n]·X[v[n]] − Y[1]
+    P = (Matrix{ComplexF64}(I, K, K) - edges[n] * A[n]) \ (edges[n] * b[n] - Matrix{ComplexF64}(Yv(1)))
+    # 回代装配 X（BI 行布局：节点 c 的块行 = (0:K-1)*n .+ c）
+    X = Matrix{ComplexF64}(undef, size(BI)...)
+    x = P
+    X[(0:K-1) .* n .+ cyc[1], :] .= x
+    for i in 2:n
+        x = edges[i-1] * x - Matrix{ComplexF64}(Yv(cyc[i]))
+        X[(0:K-1) .* n .+ cyc[i], :] .= x
+    end
+    # det(BB) = (−1)^{Kn}·det(I_K − Π)，Π = edges 沿环有序积 B[n]⋯B[1]
+    Π = edges[n]
+    for i in (n-1):-1:1
+        Π = Π * edges[i]
+    end
+    detBB = (-1.0 + 0.0im)^(K * n) *
+            det(Matrix{ComplexF64}(I, K, K) - Π)
+    return X, detBB
 end

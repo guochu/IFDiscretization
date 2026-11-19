@@ -43,7 +43,9 @@ _fermions_Δt(s::ExactIF, bath::AbstractFermionicNormalBath, N::Int, t::Real) =
     Δm(bath::AbstractFermionicNormalBath; Nτ, t, Nt, δτ=bath.β/Nτ, scheme=QuAPI())
 
 费米浴混合（Kadanoff-Baym L 形）轮廓 hybridization function。
-scheme 语义同 `Δτ`。返回 `MixedCorrelationFunction`。
+scheme 语义同 `Δτ`。`QuAPI()` 返回 `MixedCorrelationFunction`；
+`ExactIF()` 返回 `(GrassmannHybridizationMatrix, normdelta)` 元组
+（装配级严格核，腿基同冻结核，取 [1] 可替换消费）。
 """
 Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ,
    scheme::DiscretizationScheme=QuAPI()) = _fermions_Δm(scheme, bath, Nτ, t, Nt, δτ)
@@ -51,4 +53,5 @@ scheme 语义同 `Δτ`。返回 `MixedCorrelationFunction`。
 _fermions_Δm(::QuAPI, bath::AbstractFermionicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
     fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
 _fermions_Δm(s::ExactIF, bath::AbstractFermionicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
-    exact_fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ; gfsolver=s.gfsolver)
+    exact_fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ;
+                       gfsolver=s.gfsolver)[1]
