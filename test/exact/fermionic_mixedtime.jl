@@ -32,12 +32,28 @@ import IFDiscretization as IFD
 
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
 
+"""
+    compact_delta(kern, Nτ, Nt) -> Matrix
+
+测试侧稠密重建：StrictMixedCorrelationFunction 的九块 → 轮廓链序紧凑矩阵
+（n×n，行 = ā 腿、列 = a 腿；ifmatrix 层删除后由测试侧承担装配）。
+"""
+function compact_delta(kern, Nτ::Int, Nt::Int)
+    n = Nτ + 2 * (Nt + 1)
+    pos(br, j) = br === :τ ? j : (br === :+ ? Nτ + 2j - 1 : Nτ + 2j)
+    chain = [(br, j) for j in 1:Nτ for br in (:τ,)]
+    append!(chain, [(br, j) for j in 1:Nt+1 for br in (:+, :-)])
+    A = zeros(ComplexF64, n, n)
+    for (c1, (b1, j1)) in enumerate(chain), (c2, (b2, j2)) in enumerate(chain)
+        A[c1, c2] = branch(kern, b1, b2)[j1, j2]
+    end
+    return A
+end
+
 "紧凑 (ā 行, a 列) 装配：测度 −1 + 单位链 + 两条闭合边 + 真空 ρ₀ 常数"
 function mixed_assemble(kΔ::Matrix{ComplexF64}, Nτ::Int, Nt::Int)
     n = Nτ + 2 * (Nt + 1)
-    rows = [2c for c in 1:n]
-    cols = [2c - 1 for c in 1:n]
-    A = kΔ[rows, cols]
+    A = copy(kΔ)
     for c in 1:n
         A[c, c] -= 1
     end
@@ -60,7 +76,7 @@ function mixed_route(f, Nτ::Int, Nt::Int, β::Real, t::Real, M::Int;
     kern, ndlt = exact_fermionic_Δm(f; β=β, Nτ=Nτ, t=t, Nt=Nt,
                                     gfsolver=IFD.EDToulouseSolver(M),
                                     kicksτ=ComplexF64.(kicksτ), kickst=ComplexF64.(kickst))
-    Z = ndlt * det(mixed_assemble(kern.Δ, Nτ, Nt))
+    Z = ndlt * det(mixed_assemble(compact_delta(kern, Nτ, Nt), Nτ, Nt))
     return kern, real(Z)
 end
 
@@ -168,19 +184,20 @@ const εd = 0.3
                                         kicksτ=kicksτ, kickst=kickst)
             k2, n2 = IFD._exrt_mixed_kernel_dense(f2, β, Nτ, t_T, Nt, δτ, 0.0, 2,
                                                   kicksτ, kickst)
-            @test maximum(abs.(k1.Δ .- k2.Δ)) < 1e-10 * max(1.0, maximum(abs.(k2.Δ)))
+            @test k1 ≈ k2 atol=1e-12 rtol=1e-9   # 结构化/稠密舍入级差异
             @test abs(n1 - n2) < 1e-9 * abs(n2)
         end
     end
 
-    # ---- 腿基契约：basis == contour_ordering 混合序（可替换冻结核） ----
-    @testset "腿基契约：混合 contour_ordering" begin
+    # ---- 块尺寸契约：节点序同冻结核 contour_ordering 混合序（可替换冻结核） ----
+    @testset "块尺寸契约：混合 contour 序" begin
         kern, _ = exact_fermionic_Δm(f2; β=β, Nτ=3, t=t_T, Nt=2,
                                      gfsolver=IFD.EDToulouseSolver(2))
-        @test kern.basis == vcat([GrassmannContourIndex(j, :τ, 1, c)
-                                  for j in 1:3 for c in (false, true)],
-                                 [GrassmannContourIndex(jj, br, 1, c)
-                                  for jj in 1:3 for br in (:+, :-) for c in (false, true)])
+        @test size(kern.Gττ) == (3, 3)
+        @test all(m -> size(m) == (3, 3), (kern.Gτ₊, kern.Gτ₋, kern.G₊τ, kern.G₋τ))
+        @test all(m -> size(m) == (3, 3),
+                  (kern.G₊₊, kern.G₊₋, kern.G₋₊, kern.G₋₋))
+        @test branch(kern, :τ, :+) === kern.Gτ₊   # branch = 字段直取（无损）
     end
 
 end

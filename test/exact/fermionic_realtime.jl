@@ -65,6 +65,22 @@ end
 # ---------------- 紧凑装配 + n̄ 读出 ----------------
 
 """
+    full_delta(kern) -> Matrix
+
+测试侧稠密重建：StrictRealCorrelationFunction 的四块 → legpos 全矩阵
+（4(N+1)²，行 = ā 腿、列 = a 腿；ifmatrix 层删除后由测试侧承担装配）。
+"""
+function full_delta(kern)
+    n = size(kern, 1)
+    lp(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
+    Δ = zeros(ComplexF64, 4n, 4n)
+    for j1 in 0:n-1, b1 in (:+, :-), j2 in 0:n-1, b2 in (:+, :-)
+        Δ[lp(j1, b1, true), lp(j2, b2, false)] = branch(kern, b1, b2)[j1+1, j2+1]
+    end
+    return Δ
+end
+
+"""
     assemble(kΔ, npoints) -> A
 
 紧凑 (ā,a) 装配（契约见头注）：行 = ā 腿、列 = a 腿的 2(npoints)² 子块，
@@ -101,7 +117,7 @@ function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int)
     kicks = [exp(-im * g * εd) for g in gates]
     kernel, ndlt = exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=0.0,
                                             gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
-    A = assemble(kernel.Δ, length(gates))
+    A = assemble(full_delta(kernel), length(gates))
     Z = ndlt * det(A)
     return real(Z), real(nbar_vacuum(A, Z, length(gates)))
 end
@@ -214,7 +230,7 @@ const εd = 0.3
         for N in (3, 4)
             kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
                                               gfsolver=IFD.EDToulouseSolver(2))
-            A = assemble(kernel.Δ, N)
+            A = assemble(full_delta(kernel), N)
             Z = ndlt * det(A)
             @test abs(Z - 1) < 1e-12
             ix(j0, br) = 2 * j0 + (br === :+ ? 1 : 2)
@@ -247,7 +263,7 @@ const εd = 0.3
         for N in (3, 4)
             kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
                                               gfsolver=IFD.EDToulouseSolver(2))
-            A = assemble(kernel.Δ, N)
+            A = assemble(full_delta(kernel), N)
             for g in 1:N
                 x = exp(-im * (t_T / N) * εd)
                 lp(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
@@ -270,7 +286,7 @@ const εd = 0.3
             kicks = [exp(-im * g * εdv) for g in gates]
             k1 = IFD._exrt_strict_kernel(f16, cells, β, 0.0, M, kicks)
             k2 = IFD._exrt_strict_kernel_dense(f16, cells, β, 0.0, M, kicks)
-            @test maximum(abs.(k1[1].Δ .- k2[1].Δ)) < 1e-10 * max(1.0, maximum(abs.(k2[1].Δ)))
+            @test k1[1] ≈ k2[1] atol=1e-12 rtol=1e-9
             @test abs(k1[2] - k2[2]) < 1e-9 * abs(k2[2])
         end
     end

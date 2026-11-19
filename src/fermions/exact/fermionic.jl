@@ -195,7 +195,7 @@ function _exrt_strict_kernel(f::AbstractBoundedFunction, cells::Vector{Float64},
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return StrictRealCorrelationFunction(basis, Δ), prod(nbar) * detBB
+    return _strict_real_from_legpos(basis, Δ), prod(nbar) * detBB
 end
 
 """
@@ -341,8 +341,20 @@ function _exrt_strict_kernel_dense(f::AbstractBoundedFunction, cells::Vector{Flo
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return StrictRealCorrelationFunction(basis, Δ), prod(nbar) * det(BB)
+    return _strict_real_from_legpos(basis, Δ), prod(nbar) * det(BB)
 end
+
+# 严格容器的分支块切片：腿基序（chain/legpos 同构）→ 各分支 (ā 行, a 列) 块
+_strict_blocks_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{ComplexF64}) =
+    (b1, b2) -> Δ[[i for (i, l) in enumerate(basis) if l.branch == b1 && l.conj],
+                  [j for (j, l) in enumerate(basis) if l.branch == b2 && !l.conj]]
+_strict_real_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{ComplexF64}) =
+    (B = _strict_blocks_from_legpos(basis, Δ);
+     StrictRealCorrelationFunction(B(:+, :+), B(:+, :-), B(:-, :+), B(:-, :-)))
+_strict_mixed_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{ComplexF64}) =
+    (B = _strict_blocks_from_legpos(basis, Δ);
+     StrictMixedCorrelationFunction(B(:τ, :τ), B(:τ, :+), B(:τ, :-), B(:+,:τ), B(:-,:τ),
+                                    B(:+, :+), B(:+, :-), B(:-, :+), B(:-, :-)))
 
 # ------------------------------ 混合时间 ------------------------------ #
 
@@ -500,7 +512,7 @@ function _mixed_kernel(f::AbstractBoundedFunction, β::Real, Nτ::Int, t::Real, 
     # × impurity 折叠 (−1)^n（本 det 收缩机器相对 QuAPI Zvalue 机器的约定差，
     # K=1/Nτ=3 vs Nτ=2 四点机器钉定）
     pref = (-1.0 + 0.0im)^(n * (K + 1)) * detBB / Zb
-    return StrictMixedCorrelationFunction(basis, Mt - C0), pref
+    return _strict_mixed_from_legpos(basis, Mt - C0), pref
 end
 
 # 稠密参照路径（机器等价性检验用）

@@ -107,10 +107,10 @@ include("quapi/archive_regression.jl")
     @test xB.uu == yB.uu && xB.dd == yB.dd && xB.ud == yB.ud && xB.du == yB.du
     @test IFD.Δt(bB, N=4, t=0.8, scheme=e) ==
           IFD.exact_bosonic_Δt(fB, β=β, N=4, t=0.8, μ=0.2, gfsolver=IFD.EDToulouseSolver(32))
-    xM = IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)  # 核容器无 ==，逐字段比
+    xM = IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)
     yM = IFD.exact_fermionic_Δm(fF, β=β, Nτ=3, Nt=3, t=0.6, μ=0.3,
                                 gfsolver=IFD.EDToulouseSolver(32))
-    @test xM.Δ == yM[1].Δ && xM.basis == yM[1].basis
+    @test xM == yM[1]                            # 严格容器 == = 逐块相等
     # 核技术与统计正交：QuAPI() 与 ExactEqualDistantKernel() 结果不同（同为 ImagCorrelationFunction）
     @test IFD.Δτ(bF, N=5) != IFD.Δτ(bF, N=5, scheme=e)
 end

@@ -59,7 +59,7 @@ include("utility.jl")
 include("schemes.jl")
 include("corrstorages/corrstorages.jl")
 include("contourindex.jl")
-include("corrstorages/strictcorr.jl")   # 依赖 contourindex 腿类型
+include("exactcorrstorages/exactcorrstorages.jl")
 
 # 三统计 × {quapi 冻结核, exact 严格核} + 统一入口（bath-first 分派，见各 *.jl）
 include("bosons/bosons.jl")
