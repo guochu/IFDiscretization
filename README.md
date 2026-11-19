@@ -67,13 +67,14 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
 | 入口 | 轮廓 | Z 证书（normdelta 定义） | 金标准（test/exact/） |
 |---|---|---|---|
 | `exact_fermionic_Δτ` | 反周期环（纯浴，kicks 线性析出 `Δ_IF(x) = x·Δ_IF(1)`） | `Z = det(BB)·Pf(装配)` | fermionic_imagtime.jl（54） |
-| `exact_fermionic_Δt` / `_cells` | 闭 Keldysh 开线 | **Z ≡ 1 机器（任意 ε_d/调度）**；`n̄_vac = Z·(1 − A⁻¹[ā⁻_N, a⁺_N])` | fermionic_realtime.jl（58） |
+| `exact_fermionic_Δt`（+ 内部入口 `_cells`，未导出） | 闭 Keldysh 开线 | **Z ≡ 1 机器（任意 ε_d/调度）**；`n̄_vac = Z·(1 − A⁻¹[ā⁻_N, a⁺_N])` | fermionic_realtime.jl（58） |
 | `exact_fermionic_Δm` | 单环 τ→+→− | Keldysh 段算符精确相消 ⟹ `Z = τ 环踢乘积迹`；`normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath` | fermionic_mixedtime.jl（37） |
 
 - 补零 pair 网格调度（每 gap 一 Trotter 因子）下：order 2 = Strang 门链
   （n̄ 斜率 2.0）、order 1（n̄ 斜率 1.05）——两阶真实分离。
-- `exact_fermionic_Δt_cells` 支持逐 cell 调度（0/负 cell）与 `kicksτ` /
-  `kickst` 门相位；混合版同（`kicksτ` 长 Nτ 含结合 cell）。
+- `IFD.exact_fermionic_Δt_cells`（未导出，逐 cell 调度 + `kicks` 门相位的
+  内部入口）支持 0/负 cell 与任意相位向量；混合版同（`kicksτ` 长 Nτ 含
+  结合 cell）。
 - BB 消元走块结构求解：实时 = 双分支双对角 + 两角块（`det(BB) = det(I + ΦΘΨ)`），
   混合 = 单环（`det(BB) = (−1)^{Kn}·det(I − Π)`），复杂度 O(N·K²·Limp + K³)；
   稠密参照 `_exrt_strict_kernel_dense` / `_exrt_mixed_kernel_dense` 保留

@@ -110,8 +110,8 @@ function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int)
     δt = t / N
     gates, cells = pair_grid(order, N, δt)
     kicks = [exp(-im * g * εd) for g in gates]
-    kernel, ndlt = exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=0.0,
-                                            gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
+    kernel, ndlt = IFD.exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=0.0,
+                                                gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
     A = assemble(full_delta(kernel), length(gates))
     Z = ndlt * det(A)
     return real(Z), real(nbar_vacuum(A, Z, length(gates)))

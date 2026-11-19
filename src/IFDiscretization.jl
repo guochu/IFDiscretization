@@ -28,8 +28,10 @@ export BCSCorrelationFunction, bcs_Δτ, bcs_Δt, bcs_Δm
 export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 
 # 严格核（exact API，纯浴对象：签名同冻结核，无杂质信息；装配契约与
-# 金标准见 test/exact/fermionic_imagtime.jl 与 fermionic_realtime.jl）
-export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δt_cells, exact_fermionic_Δm
+# 金标准见 test/exact/fermionic_imagtime.jl 与 fermionic_realtime.jl）。
+# exact_fermionic_Δt_cells（逐 cell 调度 + kicks 门相位的内部入口）不导出——
+# 包外消费走 IFD.exact_fermionic_Δt_cells 限定名。
+export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δm
 export exact_bosonic_Δτ, exact_bosonic_Δt, exact_bosonic_Δm
 export exact_bcs_Δτ, exact_bcs_Δt, exact_bcs_Δm
 
