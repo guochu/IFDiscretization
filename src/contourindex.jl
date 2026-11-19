@@ -90,38 +90,14 @@ Grassmann legs `i` and `j`, selected by the `conj` flags:
 different bands (no band matching is required).
 """
 # ------------------------------------------------------------------ #
-# 顶点位置装配（访问器层，2026-10）：与 Dense.GrassmannHybridizationMatrix
-# 的装配修正同一约定——核闭式不变，顶点从 cell 边界移到节点（严格 B-cell IF
-# 的 O(V²) 系数，V⁴ 平台验证见 performance/fermionicG4.jl 与
-# exact_fermionic_Δτ/Δt/Δm）。返回 (源分支1, 源 j1, 源分支2, 源 j2, 符号)，
-# nothing 表示该腿对的 IF 内容为零。玻色 bath 不受影响（PT 已精确）。
+# 顶点移位（2026-10 引入，2026-11-19 全量移除）：曾经的实时 Keldysh 访问器
+# 位移映射 _vs_rt_acc（误差常数好 ~25×）连同其判决史一并删除——严格核
+# （ExactKernel 族）契约是 raw 指数系数，两套口径并存导致消费方按容器类型
+# 静默分叉（GaussianStates 桥实测 GHM(ExactReal) 套移位损坏 0.039 量级）。
+# 现状：所有轮廓（τ 环 / 实时 / 混合）访问器与装配一律 raw（cell 值）。
+# 历史：τ 环/混合移位 2026-10-30/11-04 回退（τ 环恶化 30×；混合与物理 ED
+# 矛盾）；玻色 bath 不受影响（PT 已精确）。
 # ------------------------------------------------------------------ #
-
-# 实时 Keldysh（节点 j = 1..N+1，N cells）：同支块列移 + 动能位取本支对角；
-# 交叉块开窗不变。
-# 范围判决（2026-10-30 回退，2026-11-04 删除移位映射本体）：顶点位移仅保留在
-# 实时 Keldysh（误差常数好 ~25×）。τ 环位移使 g(τ) 离散误差常数恶化 ~30×
-# （GTEMPO Toulouse 基准），混合位移与物理 ED 矛盾（正支杂化反号，收敛到
-# H_S+H_b−H_hyb 错误轮廓、误差平台不随 δt 收敛）——两者的移位映射
-# （_vs_τ_acc / _vs_mixed_acc）已随回退删除；历史三轴标定脚本各自内联了
-# 移位映射副本（原 GTEMPO/performance/firstorder/ 下的三轴标定脚本，
-# 已随 2026-11-04 的 performance 清理删除；标定结论见各注释与 GTEMPO
-# docs/tutorials/firstorderif）。
-function _vs_rt_acc(b1::Symbol, j1::Int, b2::Symbol, j2::Int, N::Int)
-    if b1 === :+ && b2 === :+
-        (j1 ≥ 2 && j2 ≤ N) || return nothing
-        return j2 == j1 - 1 ? (:+, 1, :+, 1, 1) : (:+, j1, :+, j2 + 1, 1)
-    elseif b1 === :- && b2 === :-
-        (j1 ≤ N && j2 ≥ 2) || return nothing
-        return j2 == j1 + 1 ? (:-, 1, :-, 1, 1) : (:-, j1, :-, j2 - 1, 1)
-    elseif b1 === :+ && b2 === :-
-        (j1 ≥ 2 && j2 ≥ 2) || return nothing
-        return (:+, j1, :-, j2, 1)
-    else                                    # (−, +)
-        (j1 ≤ N && j2 ≤ N) || return nothing
-        return (:-, j1, :+, j2, 1)
-    end
-end
 
 # 混合轮廓的无分配元素读取：按 `branch()` 的分支公式直接取单元素，
 # 避免为读一个矩阵元而构造整个分支矩阵（conj/负号/±im 都会分配数组）。
@@ -163,15 +139,8 @@ function Base.getindex(x::AbstractCorrelationFunction,
         v = branch(x; b1=:τ, b2=:τ)[i.j, j.j]
         return i.conj ? -v : v
     end
-    m = if bs == (:+, :-)
-        _vs_rt_acc(branch(i), i.j, branch(j), j.j,
-                   length(branch(x; b1=:+, b2=:+).ηⱼₖ) - 1)
-    else
-        error("three-branch contours go through AbstractMixedCorrelationFunction")
-    end
-    m === nothing && return zero(eltype(branch(x; b1=branch(i), b2=branch(j))))
-    D = branch(x; b1=m[1], b2=m[3])
-    v = m[5] * D[m[2], m[4]]
+    bs == (:+, :-) || error("three-branch contours go through AbstractMixedCorrelationFunction")
+    v = branch(x; b1=branch(i), b2=branch(j))[i.j, j.j]   # raw（顶点移位已删）
     return i.conj ? -v : v                  # ā-a 取 −（原约定保留）
 end
 
@@ -187,7 +156,7 @@ BCS bath 的 **IF 指数系数**：返回影响泛函指数里单项式 ξᵢξ�
 其余腿对不是指数项，返回 0：同 conj 配对（(a↑,a↑)/(ā↑,ā↑) 的 uu 误配等）与
 跨 flavor 反向对（(ā↑,a↓)/(ā↓,a↑)/(a↑,ā↓)/(a↓,ā↑) 的 ud/du 误配）。
 band 按 flavor 解释：奇数 = 上自旋（band 1），偶数 = 下自旋（band 2）。
-块值的分支/顶点位移约定与普通 bath 一致（τ 环 raw、实时顶点位移、混合 raw）。
+块值的分支约定与普通 bath 一致：全轮廓 raw（顶点移位已于 2026-11-19 移除）。
 
 注意与普通 bath 的收缩语义（x[a,ā] = +Δ、x[ā,a] = −Δ）不同：BCS 是**有向的**
 指数系数——装配处直接 `corr[i, j]` 读取，无需 conj 翻转。这是 2026-11-03 修正：
@@ -217,14 +186,9 @@ function Base.getindex(x::BCSCorrelationFunction,
         # 差 1.7-3.5×，见 docs/tutorials/firstorderif/singlemodebath）
         v = branch(Δb; b1=:τ, b2=:τ)[i.j, j.j]
     elseif bs == (:+, :-)
-        # BCS 实时：顶点位移（2026-10-30 迁移，与普通 bath 实轴同款）。
-        # 判决：GTEMPO bcs_ed 基准 vertex 比 raw 好 4-16×（gt 触 2e-4 截断
-        # 地板 vs raw 0.0036→0.0008 一阶）。注意 QuAPI.Dense 的 BCS RT 仍为
-        # 旧装配（raw）——Dense 对齐测试已隔离，以严格解为准，Dense 待同步。
-        m = _vs_rt_acc(branch(i), i.j, branch(j), j.j,
-                       length(branch(x.uu; b1=:+, b2=:+).ηⱼₖ) - 1)
-        m === nothing && return z
-        v = m[5] * branch(Δb; b1=m[1], b2=m[3])[m[2], m[4]]
+        # BCS 实时：raw（2026-11-19 顶点移位全量移除；历史判决 vertex 比
+        # raw 好 4-16×，但两套口径并存导致消费方按容器类型静默分叉）
+        v = branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]
     else
         # BCS 混合：raw（2026-10-29 起，同普通 bath；位移版与物理 ED 矛盾）
         v = branch(Δb; b1=branch(i), b2=branch(j))[i.j, j.j]

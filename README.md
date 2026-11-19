@@ -86,7 +86,7 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
 弱依赖 `GaussianStates` 激活：`FermionicGaussianState(corr)` /
 `BosonicGaussianState(corr)` 由 hybridization function 直接构造 IF 系数态
 （OSEE 熵割约定见扩展头注）。ifmatrix 稠密装配层已从包核心删除，其机器
-（顶点位移装配等）由本扩展自携；`test/osee.jl` 经
+（稠密装配等，全轮廓 raw 直构）由本扩展自携；`test/osee.jl` 经
 `Base.get_extension(IFDiscretization, :IFDiscretizationGaussianStatesExt)`
 消费。注意：扩展加载失败会被测试门静默降级——改扩展后须显式跑 osee。
 

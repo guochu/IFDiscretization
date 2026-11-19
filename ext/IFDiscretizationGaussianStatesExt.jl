@@ -4,8 +4,9 @@
 # ← QuAPI/ext/QuAPIGaussianStatesExt.jl 原样移植（构造器未动）。
 # 2026-11-19：ifmatrix 稠密装配层从包核心删除（包不再负责稠密装配），本扩展
 # 作为该能力的唯一残留消费方（GaussianStates 桥接），在模块内自携
-# correlation function → Grassmann/Bosonic 杂交矩阵装配（含顶点位移，原样
-# 迁移）+ 高斯态构造器；test/osee.jl 经本扩展消费（using 其模块命名空间）。
+# correlation function → Grassmann/Bosonic 杂交矩阵装配 + 高斯态构造器；
+# test/osee.jl 经本扩展消费（using 其模块命名空间）。顶点移位装配同日全量
+# 移除：所有轮廓 raw（cell 值）直构。
 #
 # 由 hybridization function 直接构造影响泛函（IF）系数态的高斯态表示：
 #
@@ -214,85 +215,14 @@ struct GrassmannHybridizationMatrix{T<:Number}
     Δ::Matrix{T}
 end
 
-# --------------------- 顶点位置装配（费米 PT 修正） --------------------- #
-# fermionic_Δτ/Δt 的核闭式（胞元积分）逐位等于严格 B-cell IF 的 O(V²) 系数，
-# 但旧装配把顶点放在 cell 边界（滞后偏一格），对严格方案的残差因此停在 O(V²)
-# （V 减半残差比值 4，performance/fermionicG4.jl 实测）。此处把顶点移到节点
-# ——与玻色 non-diagonal PT 在 BosonicIF 里做的分支规则修复属同一层级的
-# 装配修正，核数值完全复用。
-#
-# 生效范围（2026-10-30 判决、2026-11-04 与 contourindex.jl 访问器同构收口）：
-# 仅实时 Keldysh 保留顶点位移（单 flavor ED ✓、误差常数好 ~25×；BCS RT
-# 与访问器同规则迁移，gt/lt 4-16× 改善见 QuAPI 仓库 bcs_vertex_shift_accuracy.jl）。
-# τ 环位移使 g(τ) 离散误差常数恶化 ~30×（GTEMPO Toulouse 基准）、mixed
-# 位移与物理 ED 矛盾 6–7% 且不随 δt 收敛（GTEMPO 全部 mixed ED 套件）——
-# τ 环与混合轮廓一律 raw（cell 值）直读，移位映射本体已删除（证据与复现：
-# QuAPI 仓库 bugrepots/dense_mixed_vertexshift_convention.md；
-# GTEMPO/test/api/quapi_crosscheck.jl 为 Dense↔访问器逐位对齐测试）。
-
-# 实时 Keldysh 单 flavor（节点 0..N，腿位 pos(j,br,ā) = 4j + (br==:+ ? 0:2) + (ā?2:1)）：
-#   (ā⁺,a⁻)/(ā⁻,a⁺) 交叉块：值不变，仅开窗（ā⁺₀ 行、a⁻₀ 列 / a⁺_N 列、
-#     ā⁻_N 行置零——顶点窗口 = cell 1..N）
-#   (ā⁺,a⁺) 块：列移一位（aⱼ→aⱼ₊₁）；动能位 (j, j−1) 取 (ā⁻,a⁻) 块对角
-#   (ā⁻,a⁻) 块：镜像（列移 aⱼ→aⱼ₋₁；动能位 (j−1, j) 取 (ā⁺,a⁺) 块对角）
-function _vertex_shifted_rt(C::AbstractMatrix{T}, N::Int) where {T}
-    pos(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
-    diag₊₊ = C[pos(0, :+, true), pos(0, :+, false)]   # (+,+) 块对角（Toeplitz 常值）
-    diag₋₋ = C[pos(0, :-, true), pos(0, :-, false)]   # (−,−) 块对角
-    D = zeros(T, 4 * (N + 1), 4 * (N + 1))
-    for j1 in 0:N, j2 in 0:N
-        j1 ≥ 1 && j2 ≥ 1 &&                       # (ā⁺,a⁻)：值不变，开窗（行 ā⁺₀ / 列 a⁻₀）
-            (D[pos(j1, :+, true), pos(j2, :-, false)] = C[pos(j1, :+, true), pos(j2, :-, false)])
-        j2 ≤ N - 1 && j1 ≤ N - 1 &&               # (ā⁻,a⁺)：值不变，开窗（列 a⁺_N / 行 ā⁻_N）
-            (D[pos(j1, :-, true), pos(j2, :+, false)] = C[pos(j1, :-, true), pos(j2, :+, false)])
-        if j1 ≥ 1 && j2 ≤ N - 1                 # (ā⁺,a⁺)：列移一位，动能位取本支对角
-            D[pos(j1, :+, true), pos(j2, :+, false)] =
-                j2 == j1 - 1 ? diag₊₊ : C[pos(j1, :+, true), pos(j2 + 1, :+, false)]
-        end
-        if j1 ≤ N - 1 && j2 ≥ 1                 # (ā⁻,a⁻)：镜像（动能位取本支对角）
-            D[pos(j1, :-, true), pos(j2, :-, false)] =
-                j2 == j1 + 1 ? diag₋₋ : C[pos(j1, :-, true), pos(j2 - 1, :-, false)]
-        end
-    end
-    return D
-end
-
-# BCS 实时：每节点 8 腿（每支 a↑,ā↑,a↓,ā↓，+ 支在前），四个指数块
-# （uu↑/uu↓/ud/du）按与访问器完全相同的 `_vs_rt_acc` 规则逐腿对移位——
-# 动能位由映射落回 (:+,1,:+,1)/( :-,1,:,1) 的块对角，与单 flavor 的
-# "取本支对角"逐位一致。
-function _vertex_shifted_bcs_rt(C::AbstractMatrix{T}, N::Int) where {T}
-    ipos(br, j, band, ā) = 8 * j + (br === :+ ? 0 : 4) + (band - 1) * 2 + (ā ? 2 : 1)
-    D = zero(C)
-    blocks = (((1, true), (1, false)),   # (ā↑,a↑) = uu 正常 ↑
-              ((2, true), (2, false)),   # (ā↓,a↓) = uu 正常 ↓
-              ((1, true), (2, true)),    # (ā↑,ā↓) = ud 反常
-              ((2, false), (1, false)))  # (a↓,a↑) = du 反常
-    for b1 in (:+, :-), j1 in 0:N, b2 in (:+, :-), j2 in 0:N
-        m = _vs_rt_acc(b1, j1 + 1, b2, j2 + 1, N)   # N = cell 数（访问器约定）
-        m === nothing && continue
-        for (rb, cb) in blocks
-            D[ipos(b1, j1, rb...), ipos(b2, j2, cb...)] =
-                m[5] * C[ipos(m[1], m[2] - 1, rb...), ipos(m[3], m[4] - 1, cb...)]
-        end
-    end
-    return Matrix(D)
-end
-
-function _vertex_shifted_IF(C::AbstractMatrix, bs::Vector{GrassmannContourIndex})
-    brs = branch.(bs)
-    mixed = any(==(:τ), brs) && any(b -> b === :+ || b === :-, brs)
-    single = all(b -> b.band == 1, bs)
-    # 与访问器（contourindex.jl）逐轮廓一致：仅实时 Keldysh 位移，τ 环与混合
-    # raw（cell 值）直读——判决依据见上方范围注释。
-    mixed && return C                                  # 混合（单 flavor / BCS）：raw
-    all(b -> b === :τ, brs) && return C                # τ 环（单 flavor / BCS）：raw
-    single && return _vertex_shifted_rt(C, length(bs) ÷ 4 - 1)
-    return _vertex_shifted_bcs_rt(C, length(bs) ÷ 8 - 1)
-end
+# ------------------------------------------------------------------ #
+# 顶点移位装配已删除（2026-11-19）：全轮廓 raw（cell 值）直构——严格核
+# （ExactKernel 族）契约即 raw 指数系数，两套口径并存曾致消费方按容器类型
+# 静默分叉（GHM(ExactReal) 套移位损坏 0.039 量级）。
+# ------------------------------------------------------------------ #
 
 GrassmannHybridizationMatrix(x::IFSource) =
-    GrassmannHybridizationMatrix(basis(x), _vertex_shifted_IF(_if_coefficients(x), basis(x)))
+    GrassmannHybridizationMatrix(basis(x), _if_coefficients(x))
 
 # IF 指数中的 Δ 项：((band₁, conj₁), (band₂, conj₂), Δ 块)
 # 普通费米高斯 bath：ā Δ a
