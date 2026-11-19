@@ -1,34 +1,54 @@
 # =============================================================================
 # exact —— BCS（超导）浴严格装配（Nambu/BdG 对角化）
 #
-# ← QuAPI/exactif/test/exact_bcs_api.jl 原样移植（kernel 未动）。
+# ← QuAPI/exactif/test/exact_bcs_api.jl 移植；2026-11-19 严格化修复：
+#
+#   ① 四块改存装配级严格容器（ExactReal/ExactMixedCorrelationFunction）。
+#      raw Nambu 收缩的分支块相互独立（bath 端点闭式，无冻结核的 Toeplitz/
+#      sector 结构），点值容器对非 Toeplitz 存储的对角块走 sector 推导
+#      （_G₊₊ 从交叉块重构）——对严格核不成立（lossy）。费米严格核同因
+#      迁严格容器（见 src/fermions/exact 头注）。
+#
+#   ② 实时/混合块取向修正为包约定：branch(b1,b2)[i,j] = 场₁@(b1,i)、
+#      场₂@(b2,j) 槽位的 raw 收缩（row = Φ_p 侧时间/支，col = Φ_q† 侧）。
+#      该槽位语义由 ED 验证过的 Grassmann 装配（test/api/bcs_grassmann.jl：
+#      G[i+1,j+1] 乘 (场₁(u,i), 场₂(v,j))）与冻结核 branch 约定钉死。
+#      原移植版存成交换支对+转置（G₊₋ 槽放 (−,+) 块的转置、G₋₊ 槽放
+#      (+,−) 块的转置），按包约定消费时逐位错位。
+#
+#   ③ Δm 增补 τ₋/₋τ 两块（原点值容器靠 sector 推导，对 raw 收缩失真）；
+#      G₊τ 改 T_C 闭式 ⟨T_C Φ_p(t⁺)Φ_q†(τ)⟩ = W(t)·M₀·W(im τ)（原版存
+#      anti-T_C 物体 [W(im τ)M₀W(t)†]）。Gτ₊ 的 lesser 闭式本已正确。
 #
 # 费米 exactif 严格装配（星形 h₀ 对角化）的 Nambu 推广：对角化"杂质-热库
 # 系数矩阵" = BdG 矩阵
 #     𝓗 = [[h₊, B],[B†, −h₊ᵀ]]（厄米；h₊ = 星形杂质(ε=0)+bath，
 #          B = Δ·diag(0,1..1)——杂质槽不配对；Δ 实/复均可）
 # 热协方差：M₀ = V·diag(1/(1+e^{−βλ}))·V⁻¹ = I − f(𝓗)（整体式，逐元
-# = ⟨ΦΦ†⟩；⟨Φ†Φ⟩ = f(𝓗) 逐元成立——benchmark bcs_M0 同一恒等式）。
+# = ⟨ΦΦ†⟩；⟨Φ†Φ⟩ = f(𝓗) 逐元成立）。
 # 时间域闭式（机器精度，与任何分割无关）：
 #   虚时   𝒢_pq(τ) = +[e^{−τ𝓗}M₀]_{imp p,q}          （τ>0；KMS 反周期
-#           延拓 𝒢_pq(−τ) = −𝒢_pq(β−τ)；δ 源(−1−𝒢(β⁻))属调用方环簿记，
-#           同费米 exactif ηⱼₖ[1]=G(0⁻) 约定）
-#   实时   轮廓收缩 C(v,w) = ⟨T_C Φ_p(t_v)Φ_q†(t_w)⟩：
+#           延拓 𝒢_pq(−τ) = −𝒢_pq(β−τ)；δ 源(−1−𝒢(β⁻))住对角，同费米
+#           exactif ηⱼₖ[1]=G(0⁻) 约定）
+#   实时   raw 收缩 C(v,w) = ⟨T_C Φ_p(t_v)Φ_q†(t_w)⟩：
 #           pos(v) ≥ pos(w)：[U_v M₀ U_w†]_{imp}（greater，M₀ 权）
 #           pos(v) <  pos(w)：−[conj(U_w)(I−M₀)U_vᵀ]_{qp}（lesser，
 #           反对易翻号；U = 轮廓演化算符，含正/反支结构）
-#   混合   G₊τ[a,i] = [e^{−τᵢ𝓗}M₀e^{−i𝓗t_a}]_{imp}（晚侧闭式，有界——
-#           环归一化 M₀ 吸收 e^{+|λ|β}，同费米版教训）；Gτ₊ 由 lesser
-#           分支给出（有界）。
-# 条目为 imp 2×2 Nambu 块：(1,1)=uu(正常↑↑)、(2,2)=dd(正常↓↓)、
-# (1,2)=ud(反常 cc)、(2,1)=du(反常 nn)，raw 收缩装入
-# BCSCorrelationFunction（无提取符号——Fock ED 逐位锚定 raw）。
+#   混合   τ 交叉：Gτ± 走 lesser 分支（τ 早于一切 Keldysh 点，有界）、
+#           ±τ 走 greater 闭式 [W(±t)·e^{+𝓗τ}·M₀]（KMS 上半平面延拓；
+#           e^{λτ}/(1+e^{−βλ}) = e^{−λ(β−τ)}/(1+e^{βλ}) ⟹ τ∈[0,β] 有界）。
+# 条目为 imp 2×2 Nambu 块：(1,1)=uu(正常↑↑)、(2,2)=dd(正常↓↓，洞侧
+# Nambu(2,2) partner，Δ=0 时非对角 = −uuᵀ、对角差正则反对易接触)、
+# (1,2)=ud(反常 cc)、(2,1)=du(反常 nn)，
+# raw 收缩装入 BCSCorrelationFunction（无提取符号——Fock ED 逐位锚定 raw，
+# 金标准 test/exact/bcs_{imagtime,realtime,mixedtime}.jl）。
 # 谱离散：GL-M 节点（求积节点，M→∞ 收敛连续谱）；ε_d 不入核（调用方
 # kick 簿记，同费米 exactif）。μ=0 convention（μ≠0 抛 ArgumentError）。
 #
 # 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseSolver
 # = EDToulouseSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
-# 逐位一致。
+# 逐位一致。δτ/δt 旋钮（2026-11-19）：τ 网格步长显式化（默认 β/N，费米
+# exact 核同款），统一入口 Δτ/Δm 的 δτ 由此透传。
 # =============================================================================
 
 "Nambu/BdG 严格数据：𝓗₀（厄米）本征分解 + M₀ + imp 槽位。μ≠0 拒绝。"
@@ -65,20 +85,23 @@ bcs_Gtau_neg(D, τ::Real, p::Int, q::Int, β::Real) =
     -bcs_Gtau(D, β + τ, p, q)
 
 """
-    exact_bcs_Δτ(f; β, N, Δ, μ=0, gfsolver=EDToulouseSolver(64))
+    exact_bcs_Δτ(f; β, N, Δ, μ=0, δτ=β/N, gfsolver=EDToulouseSolver(64))
         -> BCSCorrelationFunction{ImagCorrelationFunction}
 
 严格装配虚时核：四分量环 𝒢_pq(τ_m)（点值 + KMS/δ 跳变闭式），τ_m=(d−1)δτ。
+环是 τ-差的 Toeplitz（KMS），CorrelationMatrix 向量存储无损，故保留点值容器
+（费米 exact_fermionic_Δτ 同款）。
 """
 function exact_bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, Δ::Number=0,
-                      μ::Real=0, gfsolver::ToulouseSolver=EDToulouseSolver(64))
+                      μ::Real=0, δτ::Real=β / N,
+                      gfsolver::ToulouseSolver=EDToulouseSolver(64))
     D = bcs_nambu_data(f, Δ; β=β, μ=μ, gfsolver=gfsolver)
-    δτ = β / N
     Gpt(τ, p, q) = τ > 0 ? bcs_Gtau(D, τ, p, q) : bcs_Gtau_neg(D, τ, p, q, β)
     blocks = Matrix{ImagCorrelationFunction}(undef, 2, 2)
     for p in 1:2, q in 1:2
-        ηⱼₖ = [Gpt((d - 1) * δτ, p, q) for d in 1:N]      # d=1 → G(0⁻)
-        ηₖⱼ = [Gpt(-(d - 1) * δτ, p, q) for d in 1:N]
+        ηⱼₖ = [Gpt((d - 1) * δτ, p, q) for d in 1:N]      # d=1 → G(0⁻) 全量对角
+        ηₖⱼ = vcat([zero(Gpt(0.0, p, q))],                # 对角由 ηⱼₖ[1] 独担
+                    [Gpt(-(d - 1) * δτ, p, q) for d in 2:N])
         blocks[p, q] = ImagCorrelationFunction(CorrelationMatrix(ηⱼₖ, ηₖⱼ))
     end
     # 反常块存 raw Nambu 收缩（无提取符号——sgn 是 benchmark 方案侧的
@@ -90,10 +113,12 @@ end
 
 """
     exact_bcs_Δt(f; β, N, t, Δ, μ=0, gfsolver=EDToulouseSolver(64))
-        -> BCSCorrelationFunction{RealCorrelationFunction}
+        -> BCSCorrelationFunction{ExactRealCorrelationFunction}
 
-严格装配实时核：轮廓收缩 C(v,w)（greater=M₀ 权 / lesser=(I−M₀) 权 + 反对易
-翻号），四 Nambu 分量各自给出 (G₊₋, G₋₊) 存储对。
+严格装配实时核：raw 轮廓收缩 C(v,w) = ⟨T_C Φ_p(t_v)Φ_q†(t_w)⟩（greater=M₀ 权 /
+lesser=(I−M₀) 权 + 反对易翻号），四 Nambu 分量各自给出四分支块
+G[b1,b2][i,j] = C(v=(b1,i), w=(b2,j))——row = Φ_p 侧、col = Φ_q† 侧的
+包约定槽位（含 (+,+)、(−,−) 对角块；等时点走 greater/0⁺ 侧）。
 """
 function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
                       Δ::Number=0, μ::Real=0,
@@ -113,82 +138,109 @@ function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
     end
     # ⟨Φ†Φ⟩ = f(𝓗) 的轮廓传播因子 = conj(V)·diag(f)·Vᵀ（逐元恒等式）
     L = conj(D.vecs) * Diagonal(1 .- 1 ./ (1 .+ exp.(-β * D.vals))) * transpose(D.vecs)
+    # 逐节点 2×n 切片：greater = (U_v·M₀)[imp,:]·U_w†[:,imp]；
+    # lesser = −[(conj(U_w)·L)[imp,:]·U_vᵀ[:,imp]]_{qp}
+    Pg = [U[v] * D.M₀ for v in 1:2n1]                       # n×n
+    Rl = [conj(U[w]) * L for w in 1:2n1]                    # n×n
     function Cimp(v::Int, w::Int)
         if pos[v] >= pos[w]
-            A = U[v] * D.M₀ * U[w]'
-            return [A[D.imp[p], D.imp[q]] for p in 1:2, q in 1:2]
+            # (U_v·M₀·U_w†)[imp_p, imp_q] = Σ_k (U_vM₀)_{p,k}·conj(U_w)_{q,k}
+            return [conj(dot(Pg[v][D.imp[p], :], U[w][D.imp[q], :])) for p in 1:2, q in 1:2]
         else
-            Bm = conj(U[w]) * L * transpose(U[v])
+            Bm = Rl[w] * transpose(U[v])
             return [-Bm[D.imp[q], D.imp[p]] for p in 1:2, q in 1:2]
         end
     end
-    blocks = Matrix{RealCorrelationFunction}(undef, 2, 2)
+    blocks = Vector{ExactRealCorrelationFunction}(undef, 2 * 2)
     for p in 1:2, q in 1:2
-        G₊₋ = [Cimp(n1 + j + 1, i + 1)[p, q] for i in 0:N, j in 0:N]
-        G₋₊ = [Cimp(j + 1, n1 + i + 1)[p, q] for i in 0:N, j in 0:N]
-        blocks[p, q] = RealCorrelationFunction(G₊₋, G₋₊)
+        G₊₊ = [Cimp(i + 1, j + 1)[p, q] for i in 0:N, j in 0:N]
+        G₊₋ = [Cimp(i + 1, n1 + j + 1)[p, q] for i in 0:N, j in 0:N]
+        G₋₊ = [Cimp(n1 + i + 1, j + 1)[p, q] for i in 0:N, j in 0:N]
+        G₋₋ = [Cimp(n1 + i + 1, n1 + j + 1)[p, q] for i in 0:N, j in 0:N]
+        blocks[2 * (p - 1) + q] = ExactRealCorrelationFunction(G₊₊, G₊₋, G₋₊, G₋₋)
     end
-    ud = blocks[1, 2]; du = blocks[2, 1]
-    return BCSCorrelationFunction(ud, blocks[1, 1], blocks[2, 2], du)
+    return BCSCorrelationFunction(blocks[2], blocks[1], blocks[4], blocks[3])  # (cc,cn,nc,nn)
 end
 
 """
-    exact_bcs_Δm(f; β, Nτ, t, Nt, Δ, μ=0, gfsolver=EDToulouseSolver(64))
-        -> BCSCorrelationFunction{MixedCorrelationFunction}
+    exact_bcs_Δm(f; β, Nτ, t, Nt, Δ, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64))
+        -> BCSCorrelationFunction{ExactMixedCorrelationFunction}
 
-严格装配混合核：ττ = Δτ 环数据；Keldysh 交叉 = Δt 同构造；τ-交叉闭式
-G₊τ[a+1,i] = [e^{−τᵢ𝓗}M₀e^{−i𝓗t_a}]_{imp}（环归一化有界），Gτ₊ 走 lesser
-分支（有界）。
+严格装配混合核（Kadanoff-Baym L 轮廓，τ→+→−）：九分支块
+G[b1,b2][i,j] = raw 收缩 ⟨T_C Φ_p(b1,i)Φ_q†(b2,j)⟩ 的包约定槽位——
+
+  ττ = Δτ 同款 KMS 环；四 Keldysh 块 = Δt 同构造（含 (+,+)、(−,−) 对角）；
+  τ 交叉（τ 节点早于一切 Keldysh 点）：
+    Gτ±[i,j] = lesser 闭式（−[conj(U_w)·L·W(τ)ᵀ]，(I−M₀) 权，有界）
+    G±τ[i,j] = greater 闭式 [W(±t)·e^{+𝓗τ}·M₀]（KMS 上半平面延拓；
+               e^{λτ}/(1+e^{−βλ}) = e^{−λ(β−τ)}/(1+e^{βλ}) ⟹ τ∈[0,β] 有界）
+
+节点序同冻结核 contour_ordering 混合序：τ i = 1..Nτ（τ_i=(i−1)δτ）、
+Keldysh j = 1..Nt+1（每节点 + 先 − 后，t_{j−1}=(j−1)δt）。
 """
 function exact_bcs_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
-                      Nt::Int, Δ::Number=0, μ::Real=0,
+                      Nt::Int, Δ::Number=0, μ::Real=0, δτ::Real=β / Nτ,
                       gfsolver::ToulouseSolver=EDToulouseSolver(64))
     D = bcs_nambu_data(f, Δ; β=β, μ=μ, gfsolver=gfsolver)
-    δτ = β / Nτ
     δt = t / Nt
     n1 = Nt + 1
     W(x) = D.vecs * Diagonal(exp.(-im * D.vals * x)) * D.vecs'
     Wim(x) = D.vecs * Diagonal(exp.(-D.vals * x)) * D.vecs'
     L = conj(D.vecs) * Diagonal(1 .- 1 ./ (1 .+ exp.(-β * D.vals))) * transpose(D.vecs)
-    # Keldysh 交叉块（同 Δt）
+    # Keldysh 段（同 Δt）：+ 支节点 1..n1，− 支节点 n1+1..2n1
     U = Vector{Matrix{ComplexF64}}(undef, 2n1)
-    pos = Vector{Int}(undef, 2n1)
+    kpos = Vector{Int}(undef, 2n1)
     for i in 0:Nt
         U[i+1] = W(i * δt)
-        pos[i+1] = i
+        kpos[i+1] = i
         U[n1+i+1] = W(t) * W(i * δt)'      # 反支 i=0 为转折点(物理时间 t)
-        pos[n1+i+1] = Nt + (Nt - i) + 1
+        kpos[n1+i+1] = Nt + (Nt - i) + 1
     end
-    function Cimp(v::Int, w::Int)
-        if pos[v] >= pos[w]
-            A = U[v] * D.M₀ * U[w]'
-            return [A[D.imp[p], D.imp[q]] for p in 1:2, q in 1:2]
+    Pg = [U[v] * D.M₀ for v in 1:2n1]
+    Rl = [conj(U[w]) * L for w in 1:2n1]
+    function Cimp(v::Int, w::Int)          # v, w 为 Keldysh 段腿编号
+        if kpos[v] >= kpos[w]
+            return [conj(dot(Pg[v][D.imp[p], :], U[w][D.imp[q], :])) for p in 1:2, q in 1:2]
         else
-            Bm = conj(U[w]) * L * transpose(U[v])
+            Bm = Rl[w] * transpose(U[v])
             return [-Bm[D.imp[q], D.imp[p]] for p in 1:2, q in 1:2]
         end
     end
-    # τ-交叉闭式：G₊τ = [Wim(τᵢ)·M₀·W(t_a)']_{imp}；Gτ₊ 走 lesser 分支（有界）
-    function Ximp(i::Int, a::Int)
-        Uτ = Wim((i - 1) * δτ)
-        Ut = W(a * δt)
-        A = Uτ * D.M₀ * Ut'
-        Bm = conj(Ut) * L * transpose(Uτ)
-        return ([(A[D.imp[p], D.imp[q]]) for p in 1:2, q in 1:2],
-                [-(Bm[D.imp[q], D.imp[p]]) for p in 1:2, q in 1:2])
+    # τ 交叉闭式：轮廓位 τ_i = i ≺ 一切 Keldysh 点（kpos 从 0 起）。
+    # Gτ± = lesser（−[conj(U_w)·L·W(τ_i)ᵀ]_{qp}）；G±τ = greater 闭式
+    # ⟨Φ(t^±)Φ†(τ)⟩ = [W(t)·e^{+𝓗τ}·M₀]_{imp}（KMS 上半平面延拓；
+    # τ∈[0,β] 有界：e^{λτ}/(1+e^{−βλ}) = e^{−λ(β−τ)}/(1+e^{βλ}) ≤ 1）。
+    Wτ = [Wim((i - 1) * δτ) for i in 1:Nτ]
+    Wτ⁻ = [D.vecs * Diagonal(exp.(D.vals .* ((i - 1) * δτ))) * D.vecs' for i in 1:Nτ]
+    function Ximp(i::Int, v::Int, lesser::Bool)
+        if lesser                           # (τ_i, v)：τ 早 ⟹ lesser
+            Bm = Rl[v] * transpose(Wτ[i])
+            return [-Bm[D.imp[q], D.imp[p]] for p in 1:2, q in 1:2]
+        else                                # (v, τ_i)：Keldysh 晚 ⟹ greater
+            return [conj(dot(Pg[v][D.imp[p], :], Wτ⁻[i][D.imp[q], :]))
+                    for p in 1:2, q in 1:2]
+        end
     end
     Gpt(τ, p, q) = τ > 0 ? bcs_Gtau(D, τ, p, q) : bcs_Gtau_neg(D, τ, p, q, β)
-    blocks = Matrix{MixedCorrelationFunction}(undef, 2, 2)
+    blocks = Vector{ExactMixedCorrelationFunction}(undef, 2 * 2)
     for p in 1:2, q in 1:2
-        ηⱼₖ = [Gpt((d - 1) * δτ, p, q) for d in 1:Nτ]     # d=1 → G(0⁻)
-        ηₖⱼ = [Gpt(-(d - 1) * δτ, p, q) for d in 1:Nτ]
-        G₊₋ = [Cimp(n1 + j + 1, i + 1)[p, q] for i in 0:Nt, j in 0:Nt]
-        G₋₊ = [Cimp(j + 1, n1 + i + 1)[p, q] for i in 0:Nt, j in 0:Nt]
-        G₊τ = [Ximp(i, a)[1][p, q] for a in 0:Nt, i in 1:Nτ]
-        Gτ₊ = [Ximp(i, a)[2][p, q] for i in 1:Nτ, a in 0:Nt]
-        blocks[p, q] = MixedCorrelationFunction(G₊₋, G₋₊, G₊τ, Gτ₊,
-                                                CorrelationMatrix(ηⱼₖ, ηₖⱼ))
+        ηⱼₖ = [Gpt((d - 1) * δτ, p, q) for d in 1:Nτ]      # d=1 → G(0⁻) 全量对角
+        ηₖⱼ = vcat([zero(Gpt(0.0, p, q))],
+                    [Gpt(-(d - 1) * δτ, p, q) for d in 2:Nτ])
+        Gττ = zeros(ComplexF64, Nτ, Nτ)
+        for i in 1:Nτ, j in 1:Nτ                          # KMS 环：i≥j 取 +τ 差
+            Gττ[i, j] = i >= j ? ηⱼₖ[i - j + 1] : ηₖⱼ[j - i + 1]
+        end
+        G₊₊ = [Cimp(i + 1, j + 1)[p, q] for i in 0:Nt, j in 0:Nt]
+        G₊₋ = [Cimp(i + 1, n1 + j + 1)[p, q] for i in 0:Nt, j in 0:Nt]
+        G₋₊ = [Cimp(n1 + i + 1, j + 1)[p, q] for i in 0:Nt, j in 0:Nt]
+        G₋₋ = [Cimp(n1 + i + 1, n1 + j + 1)[p, q] for i in 0:Nt, j in 0:Nt]
+        Gτ₊ = [Ximp(i, j, true)[p, q] for i in 1:Nτ, j in 1:n1]
+        Gτ₋ = [Ximp(i, n1 + j, true)[p, q] for i in 1:Nτ, j in 1:n1]
+        G₊τ = [Ximp(j, i, false)[p, q] for i in 1:n1, j in 1:Nτ]
+        G₋τ = [Ximp(j, n1 + i, false)[p, q] for i in 1:n1, j in 1:Nτ]
+        blocks[2 * (p - 1) + q] = ExactMixedCorrelationFunction(
+            Gττ, Gτ₊, Gτ₋, G₊τ, G₋τ, G₊₊, G₊₋, G₋₊, G₋₋)
     end
-    ud = blocks[1, 2]; du = blocks[2, 1]
-    return BCSCorrelationFunction(ud, blocks[1, 1], blocks[2, 2], du)
+    return BCSCorrelationFunction(blocks[2], blocks[1], blocks[4], blocks[3])  # (cc,cn,nc,nn)
 end

@@ -74,6 +74,9 @@ include("quapi/secondorder/runtests.jl")
 include("exact/fermionic_imagtime.jl")
 include("exact/fermionic_realtime.jl")
 include("exact/fermionic_mixedtime.jl")
+include("exact/bcs_imagtime.jl")
+include("exact/bcs_realtime.jl")
+include("exact/bcs_mixedtime.jl")
 
 ### 存档回归：一阶/二阶装配基准 vs 存档 CSV 逐字节（数值移植的最终防线；
 ###   存档数据自 QuAPI/test/quapi/archive_* 原样拷入；耗时较长）
@@ -105,6 +108,13 @@ include("quapi/archive_regression.jl")
     xB = IFD.Δτ(bC, N=5, scheme=e)  # BCS 容器无 ==，逐块比（uu/dd 正常块 + ud/du 反常块）
     yB = IFD.exact_bcs_Δτ(fF, β=β, N=5, μ=0.0, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))
     @test xB.uu == yB.uu && xB.dd == yB.dd && xB.ud == yB.ud && xB.du == yB.du
+    xBt = IFD.Δt(bC, N=4, t=0.8, scheme=e)
+    yBt = IFD.exact_bcs_Δt(fF, β=β, N=4, t=0.8, μ=0.0, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))
+    @test xBt.uu == yBt.uu && xBt.dd == yBt.dd && xBt.ud == yBt.ud && xBt.du == yBt.du
+    xBm = IFD.Δm(bC, Nτ=3, t=0.6, Nt=3, scheme=e)
+    yBm = IFD.exact_bcs_Δm(fF, β=β, Nτ=3, t=0.6, Nt=3, μ=0.0, Δ=0.4,
+                           gfsolver=IFD.EDToulouseSolver(32))
+    @test xBm.uu == yBm.uu && xBm.dd == yBm.dd && xBm.ud == yBm.ud && xBm.du == yBm.du
     @test IFD.Δt(bB, N=4, t=0.8, scheme=e) ==
           IFD.exact_bosonic_Δt(fB, β=β, N=4, t=0.8, μ=0.2, gfsolver=IFD.EDToulouseSolver(32))
     xM = IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)

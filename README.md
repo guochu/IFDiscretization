@@ -81,6 +81,30 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
 - 虚时核的严格性：`Δ_IF(x) = x·Δ_IF(1)` 恒等式（对角 H_imp 的环上 Lie ≡
   Strang，踢相位纯规范），order 无关是结构性的。
 
+## BCS 严格核（exact_bcs_Δτ/Δt/Δm，已修复）
+
+Nambu/BdG 对角化路线（≠ 费米的 Schur 机制）：对角化杂质-热库 BdG 矩阵
+𝓗 = [[h₊, B],[B†, −h₊ᵀ]]，热协方差 M₀ = I − f(𝓗)，三轮廓时间域闭式
+（机器精度，与分割无关）。纯浴对象（ε_d 不入核、μ=0 convention）。
+
+- 存储：`BCSCorrelationFunction` 四块 = imp 2×2 Nambu 块（uu/dd 正常、
+  ud/du 反常）的 **raw 轮廓收缩**（无提取符号）。Δτ 保留点值
+  `ImagCorrelationFunction`（KMS 环是 τ-差 Toeplitz，向量存储无损；
+  对角 = −𝒢(β⁻) 由 ηⱼₖ[1] 独担）；Δt/Δm 存装配级严格容器
+  `ExactReal`/`ExactMixedCorrelationFunction`（raw 收缩块相互独立，
+  点值容器的 sector 推导不适用）。
+- 槽位约定：`block(b1,b2)[i,j]` = raw 收缩 ⟨T_C Φ_p(b1,i)Φ_q†(b2,j)⟩
+  （row = Φ_p 侧、col = Φ_q† 侧；等时走 greater/0⁺ 侧）——与
+  test/api/bcs_grassmann.jl 的 ED 验证装配槽位一致。Δm 增补 τ₋/₋τ 块、
+  G₊τ/G₋τ 走 greater 闭式 [W(±t)·e^{+𝓗τ}·M₀]（KMS 上半平面延拓，
+  τ∈[0,β] 有界）；Gτ± 走 lesser 分支。
+- 元组 normdelta / kicks 门相位接口：**未设**（BCS 装配契约待 GTEMPO
+  BCS 后端消费时立项；raw 块 ED 锚定已完备）。
+- 金标准（test/exact/）：bcs_imagtime.jl（17）、bcs_realtime.jl（11）、
+  bcs_mixedtime.jl（25）——16 维 BCS Fock ED 定义级逐位锚定（实/复 Δ）、
+  Δ=0 费米退化（uu = 闭式 GF、dd = −uuᵀ + 正则反对易接触）、V→0、
+  μ≠0 拒绝、跨轮廓一致性（Δm 的 ττ/Keldysh 块逐位 == Δτ/Δt）、dispatch。
+
 ## GaussianStates 扩展（ext/）
 
 弱依赖 `GaussianStates` 激活：`FermionicGaussianState(corr)` /
@@ -96,7 +120,7 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
 test/api/        关联函数 API（语义/约定 + spinboson ED 对拍 + Grassmann-Pfaffian 装配语义）
 test/osee.jl     GaussianStates 扩展（corr → 系数态 OSEE；无 GaussianStates 跳过）
 test/quapi/      冻结核自由模型阶数断言 + 存档逐字节回归（18+1 CSV × orders 1/2）
-test/exact/      ExactEqualDistantKernel 金标准（费米三轮廓；见上表）
+test/exact/      ExactEqualDistantKernel 金标准（费米三轮廓 + BCS 三轮廓；见上表）
 ```
 
 全量：`julia --project=. test/runtests.jl`（当前 9903 绿；勿与其它 julia
@@ -127,11 +151,10 @@ ext/
       现有锚 = GL-M 谱求积收敛，无 Fock ED/直接链机器锚）。注意玻色无
       Nambu 结构、严格性机制（每模位移型闭式 vs 费米 Schur）不同，不能
       照搬费米机器。
-- [ ] **BCS 严格核（exact_bcs_Δτ/Δt/Δm）未修复**：现为 Nambu/BdG 时间域
-      闭式的**点值**实现（raw 2×2 imp 块装入 `BCSCorrelationFunction`），
-      同样缺元组 normdelta、kicks、装配级块容器（BCS 有反常 āā/aa 块，
-      容器需在 ExactReal 基础上扩展 band/Nambu 结构）、块结构求解与
-      金标准（现有锚 = Fock ED raw 逐位，可直接复用为金标准起点）。
+- [ ] **BCS 严格核剩余项**：三轮廓 raw Nambu 块已修复并金标准完结（2026-11-19，
+      见上节）——仍缺元组 normdelta、kicks 门相位接口与 BCS 装配级契约
+      （反常 āā/aa 块的 Pfaffian 装配 + Z 证书），待 GTEMPO BCS 后端
+      消费时立项。
 - [ ] 非均匀/逐 cell 调度的 ExactKernel 族扩展位（`cells`/`kicks` 入口已备，
       缺独立 scheme 类型与调度表 API）。
 - [ ] 连续谱大规模基准（performance/ 树的 GL-M 基准未覆盖严格核三轮廓）。

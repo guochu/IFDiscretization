@@ -18,9 +18,8 @@ BCS（超导）浴虚时 hybridization function。`scheme::DiscretizationScheme`
 
 _bcs_Δτ_dispatch(::QuAPI, bath::AbstractBCSBath, N::Int, δτ::Real) =
     bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ, δτ=δτ)
-# BCS 严格核内定 δτ = β/N（原 exact API 无 δτ 旋钮，忠实保留）
 _bcs_Δτ_dispatch(s::ExactEqualDistantKernel, bath::AbstractBCSBath, N::Int, δτ::Real) =
-    exact_bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ; gfsolver=s.solver)
+    exact_bcs_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, Δ=bath.Δ, δτ=δτ; gfsolver=s.solver)
 
 """
     Δt(bath::AbstractBCSBath; N, t, scheme=QuAPI())
