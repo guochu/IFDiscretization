@@ -38,7 +38,7 @@ export DiscretizationScheme, FrozenKernel, QuAPI
 export ToulouseSolver, EDToulouseSolver, AnaToulouseSolver
 
 # 严格核装配级载体（ExactKernel 族输出；配对 Δ + 腿基，branch 切片无损）
-export StrictRealCorrelationFunction, StrictMixedCorrelationFunction
+export ExactRealCorrelationFunction, ExactMixedCorrelationFunction
 
 # numerical tolerance
 export get_quapi_tol, set_quapi_tol!

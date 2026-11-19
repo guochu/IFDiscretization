@@ -67,7 +67,7 @@ end
 """
     full_delta(kern) -> Matrix
 
-测试侧稠密重建：StrictRealCorrelationFunction 的四块 → legpos 全矩阵
+测试侧稠密重建：ExactRealCorrelationFunction 的四块 → legpos 全矩阵
 （4(N+1)²，行 = ā 腿、列 = a 腿；ifmatrix 层删除后由测试侧承担装配）。
 """
 function full_delta(kern)

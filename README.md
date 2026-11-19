@@ -45,14 +45,14 @@ DiscretizationScheme
 | 轮廓 | 冻结核（`QuAPI()`） | 严格核（`ExactEqualDistantKernel()`） |
 |---|---|---|
 | `Δτ` | `ImagCorrelationFunction` | `(ImagCorrelationFunction, normdelta)` |
-| `Δt` | `RealCorrelationFunction` | `(StrictRealCorrelationFunction, normdelta)` |
-| `Δm` | `MixedCorrelationFunction` | `(StrictMixedCorrelationFunction, normdelta)` |
+| `Δt` | `RealCorrelationFunction` | `(ExactRealCorrelationFunction, normdelta)` |
+| `Δm` | `MixedCorrelationFunction` | `(ExactMixedCorrelationFunction, normdelta)` |
 
 - 点值容器（src/corrstorages/）：Toeplitz/分支块的解析关联函数存储，
   `branch(x; b1, b2)` 按统一约定读分支块。
 - 严格容器（src/exactcorrstorages/）：装配级**配对矩阵**的稠密分支块字段——
-  `StrictRealCorrelationFunction` 四块（G₊₊/G₊₋/G₋₊/G₋₋）、
-  `StrictMixedCorrelationFunction` 九块（ττ/τ₊/τ₋/₊τ/₋τ + 四 Keldysh 块）；
+  `ExactRealCorrelationFunction` 四块（G₊₊/G₊₋/G₋₊/G₋₋）、
+  `ExactMixedCorrelationFunction` 九块（ττ/τ₊/τ₋/₊τ/₋τ + 四 Keldysh 块）；
   `G[b1,b2][i,j]` = 系数 ā^{b1}_i·a^{b2}_j，节点序 = 冻结核 contour_ordering
   约定。`branch` 切片直取真块（无损——严格 Δ 的块相互独立，点值容器的
   sector 推导不适用，数值定谳见金标准头注）。
@@ -130,7 +130,7 @@ ext/
 - [ ] **BCS 严格核（exact_bcs_Δτ/Δt/Δm）未修复**：现为 Nambu/BdG 时间域
       闭式的**点值**实现（raw 2×2 imp 块装入 `BCSCorrelationFunction`），
       同样缺元组 normdelta、kicks、装配级块容器（BCS 有反常 āā/aa 块，
-      容器需在 StrictReal 基础上扩展 band/Nambu 结构）、块结构求解与
+      容器需在 ExactReal 基础上扩展 band/Nambu 结构）、块结构求解与
       金标准（现有锚 = Fock ED raw 逐位，可直接复用为金标准起点）。
 - [ ] 非均匀/逐 cell 调度的 ExactKernel 族扩展位（`cells`/`kicks` 入口已备，
       缺独立 scheme 类型与调度表 API）。

@@ -35,7 +35,7 @@ include(joinpath(@__DIR__, "_anchor_utils.jl"))
 """
     compact_delta(kern, Nτ, Nt) -> Matrix
 
-测试侧稠密重建：StrictMixedCorrelationFunction 的九块 → 轮廓链序紧凑矩阵
+测试侧稠密重建：ExactMixedCorrelationFunction 的九块 → 轮廓链序紧凑矩阵
 （n×n，行 = ā 腿、列 = a 腿；ifmatrix 层删除后由测试侧承担装配）。
 """
 function compact_delta(kern, Nτ::Int, Nt::Int)

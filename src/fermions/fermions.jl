@@ -44,7 +44,7 @@ _fermions_Δt(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N::
 
 费米浴混合（Kadanoff-Baym L 形）轮廓 hybridization function。
 scheme 语义同 `Δτ`。`QuAPI()` 返回 `MixedCorrelationFunction`；
-`ExactEqualDistantKernel()` 返回 `(StrictMixedCorrelationFunction, normdelta)` 元组
+`ExactEqualDistantKernel()` 返回 `(ExactMixedCorrelationFunction, normdelta)` 元组
 （装配级严格核，腿基同冻结核，取 [1] 可替换消费）。
 """
 Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ,

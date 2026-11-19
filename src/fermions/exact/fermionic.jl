@@ -70,7 +70,7 @@ _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā
 
 """
     exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64))
-        -> (StrictRealCorrelationFunction, normdelta)
+        -> (ExactRealCorrelationFunction, normdelta)
 
 ExactEqualDistantKernel 严格 IF 核（实时 Keldysh 轮廓），元组返回 `(核, 归一常数)`——
 `exact_fermionic_Δt_cells` 的均匀网格便捷封装（cells = fill(t/N, N)，kicks = 1）。
@@ -94,7 +94,7 @@ end
 
 """
     exact_fermionic_Δt_cells(f; β, cells, μ=0, gfsolver=EDToulouseSolver(64), kicks)
-        -> (StrictRealCorrelationFunction, normdelta)
+        -> (ExactRealCorrelationFunction, normdelta)
 
 实时 Keldysh 严格核的逐 cell 调度版：`cells[k]` = 第 k 个 Keldysh cell 的演化
 长度（可取 0/负），`kicks[k]` = 第 k 个 gap 的杂质踢相位 x_k = e^{−iα_k·ε_d}
@@ -350,17 +350,17 @@ _strict_blocks_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{Comp
                   [j for (j, l) in enumerate(basis) if l.branch == b2 && !l.conj]]
 _strict_real_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{ComplexF64}) =
     (B = _strict_blocks_from_legpos(basis, Δ);
-     StrictRealCorrelationFunction(B(:+, :+), B(:+, :-), B(:-, :+), B(:-, :-)))
+     ExactRealCorrelationFunction(B(:+, :+), B(:+, :-), B(:-, :+), B(:-, :-)))
 _strict_mixed_from_legpos(basis::Vector{GrassmannContourIndex}, Δ::Matrix{ComplexF64}) =
     (B = _strict_blocks_from_legpos(basis, Δ);
-     StrictMixedCorrelationFunction(B(:τ, :τ), B(:τ, :+), B(:τ, :-), B(:+,:τ), B(:-,:τ),
+     ExactMixedCorrelationFunction(B(:τ, :τ), B(:τ, :+), B(:τ, :-), B(:+,:τ), B(:-,:τ),
                                     B(:+, :+), B(:+, :-), B(:-, :+), B(:-, :-)))
 
 # ------------------------------ 混合时间 ------------------------------ #
 
 """
     exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64))
-        -> (StrictMixedCorrelationFunction, normdelta)
+        -> (ExactMixedCorrelationFunction, normdelta)
 
 ExactEqualDistantKernel 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
 `(核, 归一常数)`。轮廓**单环** τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→
