@@ -2,6 +2,12 @@ println("------------------------------------")
 println("|   GaussianStates extension: OSEE  |")
 println("------------------------------------")
 
+# 稠密装配（ifmatrix 层已删）：由 GaussianStates 扩展自携（weak-dep 桥接层
+# 的残留消费方）；扩展模块经 Base.get_extension 访问（GaussianStates 已加载
+# ⟹ 已激活）
+const _IGSExt = Base.get_extension(IFDiscretization, :IFDiscretizationGaussianStatesExt)
+using ._IGSExt
+
 # ← QuAPI/test/osee.jl 移植：只保留「GaussianStates extension」核心测试集
 #   （corr → 高斯态构造 + OSEE，purify/解析锚，经 IFDiscretization 的
 #   ifmatrix 层）。其余测试集（玻色 OSEE ↔ BosonicPT d→∞、稠密 IF 张量 vs
@@ -143,3 +149,4 @@ end
     @test entropy(sr, collect(1:4)) ≈ 0.0 atol = 1e-12
     @test ispure(sr)
 end
+

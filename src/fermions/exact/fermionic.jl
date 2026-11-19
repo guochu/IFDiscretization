@@ -70,7 +70,7 @@ _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā
 
 """
     exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64))
-        -> (GrassmannHybridizationMatrix, normdelta)
+        -> (StrictRealCorrelationFunction, normdelta)
 
 ExactEqualDistantKernel 严格 IF 核（实时 Keldysh 轮廓），元组返回 `(核, 归一常数)`——
 `exact_fermionic_Δt_cells` 的均匀网格便捷封装（cells = fill(t/N, N)，kicks = 1）。
@@ -94,12 +94,12 @@ end
 
 """
     exact_fermionic_Δt_cells(f; β, cells, μ=0, gfsolver=EDToulouseSolver(64), kicks)
-        -> (GrassmannHybridizationMatrix, normdelta)
+        -> (StrictRealCorrelationFunction, normdelta)
 
 实时 Keldysh 严格核的逐 cell 调度版：`cells[k]` = 第 k 个 Keldysh cell 的演化
 长度（可取 0/负），`kicks[k]` = 第 k 个 gap 的杂质踢相位 x_k = e^{−iα_k·ε_d}
 （默认全 1 = 纯浴对象）。腿点数 = length(cells)+1（节点 0..N，腿基同冻结核
-GrassmannHybridizationMatrix(fermionic_Δt(...))）。
+冻结核实时序）。
 
 构造（← QuAPI/src/exactfermionic.jl `exact_fermionic_Δt_cells` 移植 + 带踢
 复合）：gap 复合单粒子矩阵 + 支 = D(x_k)·W_k（杂质输出行 ×x_k），− 支 = 其
@@ -195,7 +195,7 @@ function _exrt_strict_kernel(f::AbstractBoundedFunction, cells::Vector{Float64},
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return GrassmannHybridizationMatrix(basis, Δ), prod(nbar) * detBB
+    return StrictRealCorrelationFunction(basis, Δ), prod(nbar) * detBB
 end
 
 """
@@ -341,14 +341,14 @@ function _exrt_strict_kernel_dense(f::AbstractBoundedFunction, cells::Vector{Flo
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return GrassmannHybridizationMatrix(basis, Δ), prod(nbar) * det(BB)
+    return StrictRealCorrelationFunction(basis, Δ), prod(nbar) * det(BB)
 end
 
 # ------------------------------ 混合时间 ------------------------------ #
 
 """
     exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64))
-        -> (GrassmannHybridizationMatrix, normdelta)
+        -> (StrictMixedCorrelationFunction, normdelta)
 
 ExactEqualDistantKernel 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
 `(核, 归一常数)`。轮廓**单环** τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→
@@ -500,7 +500,7 @@ function _mixed_kernel(f::AbstractBoundedFunction, β::Real, Nτ::Int, t::Real, 
     # × impurity 折叠 (−1)^n（本 det 收缩机器相对 QuAPI Zvalue 机器的约定差，
     # K=1/Nτ=3 vs Nτ=2 四点机器钉定）
     pref = (-1.0 + 0.0im)^(n * (K + 1)) * detBB / Zb
-    return GrassmannHybridizationMatrix(basis, Mt - C0), pref
+    return StrictMixedCorrelationFunction(basis, Mt - C0), pref
 end
 
 # 稠密参照路径（机器等价性检验用）

@@ -37,9 +37,8 @@ export exact_bcs_Δτ, exact_bcs_Δt, exact_bcs_Δm
 export DiscretizationScheme, FrozenKernel, QuAPI
 export ToulouseSolver, EDToulouseSolver, AnaToulouseSolver
 
-# corr → 配对（杂交）矩阵层（GaussianStates 扩展的底座；稠密张量机器留 QuAPI.Dense）
-export basis, contour_ordering
-export GrassmannHybridizationMatrix, BosonicHybridizationMatrix, BosonicSplitDelta
+# 严格核装配级载体（ExactKernel 族输出；配对 Δ + 腿基，branch 切片无损）
+export StrictRealCorrelationFunction, StrictMixedCorrelationFunction
 
 # numerical tolerance
 export get_quapi_tol, set_quapi_tol!
@@ -60,7 +59,7 @@ include("utility.jl")
 include("schemes.jl")
 include("corrstorages/corrstorages.jl")
 include("contourindex.jl")
-include("ifmatrix/ifmatrix.jl")
+include("corrstorages/strictcorr.jl")   # 依赖 contourindex 腿类型
 
 # 三统计 × {quapi 冻结核, exact 严格核} + 统一入口（bath-first 分派，见各 *.jl）
 include("bosons/bosons.jl")
