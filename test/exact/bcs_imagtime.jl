@@ -14,11 +14,6 @@
 #   dispatch —— Δτ(bath; scheme=ExactEqualDistantKernel) == 直接调用（δτ 透传）。
 # =============================================================================
 
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
-
 include(joinpath(@__DIR__, "_bcs_ed_utils.jl"))
 
 const β = 2.0

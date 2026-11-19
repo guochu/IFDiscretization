@@ -123,7 +123,7 @@ test/quapi/      冻结核自由模型阶数断言 + 存档逐字节回归（18+
 test/exact/      ExactEqualDistantKernel 金标准（费米三轮廓 + BCS 三轮廓；见上表）
 ```
 
-全量：`julia --project=. test/runtests.jl`（当前 9903 绿；勿与其它 julia
+全量：`julia --project=. test/runtests.jl`（当前 9958 绿；勿与其它 julia
 进程并行——内存竞态）。
 
 ## 包结构

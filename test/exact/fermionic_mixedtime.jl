@@ -25,11 +25,6 @@
 #   腿基契约        basis == contour_ordering 混合序（可替换冻结核）
 # =============================================================================
 
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
-
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
 
 """

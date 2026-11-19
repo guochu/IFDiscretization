@@ -28,11 +28,6 @@
 #   T3 物理   n̄(N) 对连续极限的阶数标度（order 2 ⟹ δt²、order 1 ⟹ δt¹）
 # =============================================================================
 
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
-
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
 
 # ---------------- 调度表：补零 pair 网格（NativeExact trotter_factors 同款） ----------------

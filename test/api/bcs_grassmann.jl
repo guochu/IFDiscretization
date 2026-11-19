@@ -2,8 +2,6 @@ println("------------------------------------")
 println("|  Real-time QuAPI (BCS bath)      |")
 println("------------------------------------")
 
-using Test, LinearAlgebra
-
 # =====================================================================
 # Real-time QuAPI for the Toulouse model with a BCS bath
 #

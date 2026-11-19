@@ -88,10 +88,6 @@ function strictif_assembly(f::AbstractBoundedFunction, εd::Real, N::Int, β::Re
 end
 
 # ================================= 测试 =================================
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
 
 include(joinpath(@__DIR__, "..", "api", "_pfaffian_utils.jl"))
 const _pf = pfaffian

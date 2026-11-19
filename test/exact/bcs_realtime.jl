@@ -14,11 +14,6 @@
 #   对角 → ½、反常 → 0；统一入口 dispatch == 直接调用。
 # =============================================================================
 
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
-
 include(joinpath(@__DIR__, "_bcs_ed_utils.jl"))
 
 const β = 2.0

@@ -13,11 +13,6 @@
 # G±τ 走 greater 闭式 [W(±t)·e^{+𝓗τ}·M₀]（KMS 上半平面延拓；τ∈[0,β] 有界）。
 # =============================================================================
 
-using Test, LinearAlgebra
-using ImpurityModelBase
-using IFDiscretization
-import IFDiscretization as IFD
-
 include(joinpath(@__DIR__, "_bcs_ed_utils.jl"))
 
 const β = 2.0

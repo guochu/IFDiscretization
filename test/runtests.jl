@@ -30,6 +30,10 @@
 #   - test/quapi/archive_regression.jl 的 imagtime_dense 测试集。
 # 与 QuAPI 的逐位对拍在 debug/parity_vs_quapi.jl（独立环境，非 Pkg.test 一部分）。
 # =============================================================================
+# 测试的 using/import 集中于本文件：leaf 测试文件（api/ quapi/ exact/）不再
+# 自带 using，统一经本文件在 include 树中提供（begin 块不引入新作用域）。
+# 例外：osee.jl 的 `using ._IGSExt` 为扩展模块绑定；quapi 快照 common.jl 的
+# using 随 performance/ 母本镜像逐字保留（含 Printf）。
 using Test
 using LinearAlgebra
 using ImpurityModelBase

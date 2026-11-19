@@ -13,7 +13,6 @@
 # 覆盖矩阵：
 #   firstorder/{bosons,fermions,bcs}  × {realtime,imagtime,mixedtime}
 #   secondorder/{bosons,fermions,bcs} × {realtime,imagtime,mixedtime}
-using Test
 
 const ROOT = joinpath(@__DIR__, "..", "..")
 const PERF = joinpath(ROOT, "performance")

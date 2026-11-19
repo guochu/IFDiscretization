@@ -2,8 +2,6 @@ println("------------------------------------")
 println("|      Imaginary-time QuAPI        |")
 println("------------------------------------")
 
-using Test, LinearAlgebra
-
 """
     quapi_adt(β, ε, Δ, ωs, λs; N)
 

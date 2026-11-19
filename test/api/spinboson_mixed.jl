@@ -3,8 +3,6 @@ println("|        Mixed-time QuAPI          |")
 println("|     (Kadanoff / L-shaped)        |")
 println("------------------------------------")
 
-using Test, LinearAlgebra
-
 """
     quapi_mixed(β, ε, Δ, ωs, λs; Nt, Nτ, t, μ=0.0)
 
