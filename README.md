@@ -127,6 +127,10 @@ test/exact/      ExactEqualDistantKernel 金标准（费米三轮廓 + BCS 三�
 全量：`julia --project=. test/runtests.jl`（当前 9958 绿；勿与其它 julia
 进程并行——内存竞态）。
 
+文档（Documenter，镜像 QuAPI 体系）：`julia --project=docs docs/make.jl`
+构建到 docs/build/（KaTeX 本地自托管，file:// 可读）；
+`julia --project=docs docs/liveserver.jl` 实时预览。
+
 ## 包结构
 
 ```
@@ -140,6 +144,9 @@ src/
 ├── defaults.jl  utility.jl
 ext/
 └── IFDiscretizationGaussianStatesExt.jl
+docs/
+├── make.jl  Project.toml  liveserver.jl   # Documenter 构建（KaTeX 自托管）
+└── src/                                    # 文档源（Home/Guide/API/约定/严格核契约）
 ```
 
 ## TODO / 已知状态

@@ -1,0 +1,8 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+IFDiscretization = "29079917-c15e-41a7-ab41-1df48b32450b"
+ImpurityModelBase = "a5817ebb-6d84-46c1-a17a-d25f868e249e"
+
+[compat]
+Documenter = "1"
+julia = "1.10"

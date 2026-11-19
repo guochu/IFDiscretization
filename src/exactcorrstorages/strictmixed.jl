@@ -33,7 +33,8 @@ function _strict_block(x::ExactMixedCorrelationFunction, b1::Symbol, b2::Symbol)
 end
 
 # 接口同点值 MixedCorrelationFunction：不定义 Base.size（抽象层默认 error），
-# 以 isize/rsize 承载两段节点数（τ = isize、Keldysh = rsize）
+# 以 isize/rsize 承载两段节点数（τ = isize、Keldysh = rsize）；docstring 与
+# 语义见 MixedCorrelationFunction 的同名方法
 isize(x::ExactMixedCorrelationFunction) = size(x.Gττ, 1)
 rsize(x::ExactMixedCorrelationFunction) = size(x.G₊₋, 1)
 

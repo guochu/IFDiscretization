@@ -62,7 +62,20 @@ Base.:+(A::MixedCorrelationFunction, B::MixedCorrelationFunction) =
     MixedCorrelationFunction(A.G₊₋ + B.G₊₋, A.G₋₊ + B.G₋₊,
                              A.G₊τ + B.G₊τ, A.Gτ₊ + B.Gτ₊, A.Gττ + B.Gττ)
 
+"""
+    IFD.isize(x::MixedCorrelationFunction) -> Int
+
+混合 L 轮廓的虚时段节点数 ``Nτ``（ττ 块的行数）。未导出（同 QuAPI 约定），
+使用时显式限定名取用。
+"""
 isize(x::MixedCorrelationFunction) = size(x.Gττ, 1)
+
+"""
+    IFD.rsize(x::MixedCorrelationFunction) -> Int
+
+混合 L 轮廓的实时段节点数 ``Nt + 1``（₊₋ 块的行数，每节点 + 先 − 后）。
+未导出（同 QuAPI 约定），使用时显式限定名取用。
+"""
 rsize(x::MixedCorrelationFunction) = size(x.G₊₋, 1)
 
 function branch(x::MixedCorrelationFunction{A}; b1::Symbol, b2::Symbol) where {A<:CorrelationMatrix{ComplexF64}}

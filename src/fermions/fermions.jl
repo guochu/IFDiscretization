@@ -10,7 +10,9 @@ include("exact/exact.jl")
 
 费米浴虚时 hybridization function。`scheme::DiscretizationScheme` 选核技术：
 `QuAPI()`（默认，一阶冻结核梯形装配）或 `ExactEqualDistantKernel(gfsolver)`（严格核，
-本征求解器 + GL-M 求积）。返回 `ImagCorrelationFunction`。β、μ 从 bath
+本征求解器 + GL-M 求积）。`QuAPI()` 返回 `ImagCorrelationFunction`；
+`ExactEqualDistantKernel()` 返回 `(ImagCorrelationFunction, normdelta)` 元组
+（装配级 Z 证书，见 exact_fermionic_Δτ）。β、μ 从 bath
 对象读取。
 
 注：`exact_fermionic_*`（ExactEqualDistantKernel 路线）接替 QuAPI 已删除的
@@ -29,7 +31,9 @@ _fermions_Δτ(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N:
     Δt(bath::AbstractFermionicNormalBath; N, t, scheme=QuAPI())
 
 费米浴实时（闭 Keldysh 轮廓）hybridization function，δt = t/N。
-scheme 语义同 `Δτ`。返回 `RealCorrelationFunction`。
+scheme 语义同 `Δτ`。`QuAPI()` 返回 `RealCorrelationFunction`；
+`ExactEqualDistantKernel()` 返回 `ExactRealCorrelationFunction`（normdelta 经
+直接调用 `exact_fermionic_Δt` 获取）。
 """
 Δt(bath::AbstractFermionicNormalBath; N::Int, t::Real,
    scheme::DiscretizationScheme=QuAPI()) = _fermions_Δt(scheme, bath, N, t)
@@ -44,8 +48,8 @@ _fermions_Δt(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N::
 
 费米浴混合（Kadanoff-Baym L 形）轮廓 hybridization function。
 scheme 语义同 `Δτ`。`QuAPI()` 返回 `MixedCorrelationFunction`；
-`ExactEqualDistantKernel()` 返回 `(ExactMixedCorrelationFunction, normdelta)` 元组
-（装配级严格核，腿基同冻结核，取 [1] 可替换消费）。
+`ExactEqualDistantKernel()` 返回 `ExactMixedCorrelationFunction`（装配级严格
+核，腿基同冻结核；normdelta 经直接调用 `exact_fermionic_Δm` 获取）。
 """
 Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ,
    scheme::DiscretizationScheme=QuAPI()) = _fermions_Δm(scheme, bath, Nτ, t, Nt, δτ)
