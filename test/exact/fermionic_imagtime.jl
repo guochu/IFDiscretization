@@ -16,6 +16,12 @@
 #        阶数分离断言属实时开线几何（fermionic_realtime.jl）。
 #      · 连续模型严格解（ImpurityModelBase `fermionic_toulouse_Gτ_semicircular`
 #        闭式）：最细 N 饱和于谱离散地板（GL-M 对半圆的求积偏差）。
+#   T4 实现互检（2026-11-19 谱闭式替换后）：src `exact_fermionic_Δτ` 已是
+#      谱闭式（拷贝空间傅里叶块对角化 + Schur 标量化，O(K³+N·K+N²)）；本
+#      文件的 `dense_schur_Δτ` helper 保留原稠密 Schur 实现（O((KN)³)）作
+#      实现互检参照——T1 经 strictif_assembly 直接消费替换后的正路
+#      （被测路径 = 被发布路径），T4 钉死谱闭式与稠密路径的严格等价性
+#      （kernel ~1e-12、detBB 相对 ~1e-12）+ 构造性循环检查 + f≡0 契约。
 #
 # 装配契约：B = skeleton(x) + x·Δ_IF（x = e^{−δτ·ε_d}，ε_d ≠ 0 ⟹ x-标度
 # 契约直接受检）；Z = det(BB)·Pf(B)，det(BB) = 纯浴环浴块行列式（本文件
@@ -85,6 +91,58 @@ function strictif_assembly(f::AbstractBoundedFunction, εd::Real, N::Int, β::Re
     n̄ = 1 - Binv[2, 1]
     G = [1 - n̄; [-Binv[2(N-m+1), 1] for m in 1:N-1]]
     return real(normdelta) * real(Zpf), n̄, G
+end
+
+"""
+    dense_schur_Δτ(f; β, N, μ=0, δτ=β/N, gfsolver, filter=true)
+        -> (ηⱼₖ, ηₖⱼ, detBB, Δ)
+
+稠密 Schur 参照（原 `exact_fermionic_Δτ` 实现，2026-11-19 谱闭式替换后的
+测试侧 helper，plan/imagtime-spectral-schur-plan.md §3）：反周期环单粒子
+矩阵 M = −I + kron(W, S) 的杂质通道 Schur 补 Δ_full = II − IB·BB⁻¹·BI，
+减 x=1 骨架（Δ = Δ_full + I − S）后取环向量。**O((KN)³) 时间 / O((KN)²)
+内存——勿用于大规模**（本文件互检尺寸 ≤ K=48 × N=16）。`filter` 控制
+死模过滤（`wΓ > 0` + K ≥ 1 守卫，与 src 谱闭式同构）；false 档供无过滤
+行为观察（f≡0 时 Δ_full = S − I ⟹ Δ ≡ 0）。
+"""
+function dense_schur_Δτ(f::AbstractBoundedFunction; β::Real, N::Int,
+                        μ::Real=0, δτ::Real=β / N,
+                        gfsolver=IFD.EDToulouseSolver(64), filter::Bool=true)
+    M = IFD._nbath(gfsolver)
+    Es, Vsq, wΓ = IFD._quad_nodes(f, μ, M)
+    if filter
+        keep = wΓ .> 0
+        Es = Es[keep]; Vsq = Vsq[keep]
+    end
+    K = length(Es)
+    K >= 1 || throw(ArgumentError("谱在支撑上的积分为零（或非正）"))
+    n = K + 1
+    h0 = zeros(ComplexF64, n, n)
+    for k in 1:K
+        h0[1, 1+k] = Vsq[k]; h0[1+k, 1] = conj(Vsq[k]); h0[1+k, 1+k] = Es[k]
+    end
+    W = exp(-δτ .* h0)
+    S = zeros(ComplexF64, N, N)
+    for k in 2:N; S[k, k-1] = 1.0; end
+    S[1, N] = -1.0                                    # 反周期扭转
+    MM = -Matrix{ComplexF64}(I, n * N, n * N) + kron(W, S)
+    II = MM[1:N, 1:N]
+    IB = MM[1:N, N+1:end]
+    BI = MM[N+1:end, 1:N]
+    BB = MM[N+1:end, N+1:end]
+    Δ_full = II - IB * (BB \ BI)
+    Δ = Δ_full + Matrix{ComplexF64}(I, N, N) - S   # 减 x=1 骨架（−I + S）⟹ IF-only
+    ηⱼₖ = [Δ[1 + d, 1] for d in 0:N-1]
+    ηₖⱼ = vcat([zero(Δ[1, 1])], [Δ[1, 1 + d] for d in 1:N-1])
+    return (ηⱼₖ=ηⱼₖ, ηₖⱼ=ηₖⱼ, detBB=det(BB), Δ=Δ)
+end
+
+"S 环（反周期移位，S[k,k−1] = 1、S[1,N] = −1）：T4 的 Δ 骨架重构用"
+function S_ring(N::Int)
+    S = zeros(ComplexF64, N, N)
+    for k in 2:N; S[k, k-1] = 1.0; end
+    S[1, N] = -1.0
+    return S
 end
 
 # ================================= 测试 =================================
@@ -205,5 +263,46 @@ const t_half = 1.0
         @test ec64 >= floor_G * 0.999
     end
 
+    # ---- T4 实现互检：谱闭式（src 正路）vs 稠密 Schur 参照（plan §5 Phase C） ----
+    @testset "T4 实现互检：谱闭式 vs 稠密 Schur（Toeplitz 构造性 + detBB + f≡0 契约）" begin
+        f4 = semicircular(t_half)
+        for K in (2, 8, 48), N in (2, 3, 4, 8, 16)
+            gs = IFD.EDToulouseSolver(K)
+            d = dense_schur_Δτ(f4; β=β, N=N, gfsolver=gs)
+            s, nd = exact_fermionic_Δτ(f4; β=β, N=N, gfsolver=gs)
+            # kernel 环向量逐条（不同舍入路径 ⟹ isapprox，非逐位）
+            @test maximum(abs.(d.ηⱼₖ .- s.data.ηⱼₖ)) < 1e-12
+            @test maximum(abs.(d.ηₖⱼ .- s.data.ηₖⱼ)) < 1e-12
+            # normdelta 闭式 vs 稠密 det（相对容差）
+            @test isapprox(nd, d.detBB; rtol=1e-12, atol=0)
+            # 构造性 Toeplitz 检查：核向量 = Δ_full 的双生成元（首列/首行；反周期
+            # 频率 ⟹ 非单一循环向量——这正是 CorrelationMatrix 存两条向量的原因）。
+            # 反解生成元（剥骨架逆运算）重建完整 Δ == 稠密 Δ。
+            col = Vector{ComplexF64}(undef, N)
+            col[1] = s.data.ηⱼₖ[1] - 1
+            for i in 2:N
+                col[i] = s.data.ηⱼₖ[i] + (i == 2 ? 1.0 : 0.0)
+            end
+            row = Vector{ComplexF64}(undef, N)
+            row[1] = col[1]
+            for j in 2:N
+                row[j] = s.data.ηₖⱼ[j] - (j == N ? 1.0 : 0.0)
+            end
+            Δspec = [i >= j ? col[i - j + 1] : row[j - i + 1] for i in 1:N, j in 1:N]
+            Δ = Δspec + Matrix{ComplexF64}(I, N, N) - S_ring(N)
+            @test maximum(abs.(Δ .- d.Δ)) < 1e-12
+        end
+        # μ 平移抽查（μ 折进 Es 的语义两侧同构）
+        for μv in (0.3, -0.2), N in (4, 8)
+            d = dense_schur_Δτ(f4; β=β, N=N, μ=μv, gfsolver=IFD.EDToulouseSolver(8))
+            s, nd = exact_fermionic_Δτ(f4; β=β, N=N, μ=μv, gfsolver=IFD.EDToulouseSolver(8))
+            @test maximum(abs.(d.ηⱼₖ .- s.data.ηⱼₖ)) < 1e-12
+            @test isapprox(nd, d.detBB; rtol=1e-12, atol=0)
+        end
+        # f≡0 ⟹ ArgumentError（裁决③：与 Δt/Δm 守卫语义对齐）
+        f0 = bounded(ω -> 0.0, -1.0, 1.0)
+        @test_throws ArgumentError exact_fermionic_Δτ(f0; β=β, N=6, gfsolver=IFD.EDToulouseSolver(8))
+    end
+
 end
-println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解）")
+println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解 + T4 谱闭式互检）")

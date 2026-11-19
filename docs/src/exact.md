@@ -9,7 +9,7 @@
 
 | 统计 | 机制 | 状态 |
 |---|---|---|
-| 费米 | **bath+耦合 cell 的带踢 Schur**（单粒子轮廓矩阵 Schur 消浴得配对 Δ） | 三轮廓完结 |
+| 费米 | **带踢 Schur**（单粒子轮廓矩阵 Schur 消浴得配对 Δ）；虚时走其**谱闭式**（拷贝空间傅里叶块对角化，O(K³+N·K+N²)，稠密参照 = 测试 helper） | 三轮廓完结 |
 | BCS | **Nambu/BdG 对角化闭式**（时间域机器精度，与分割无关） | 三轮廓完结（normdelta/kicks 待立项） |
 | 玻色 | 每模时间域闭式（点值） | **未升级**（无 Nambu/Schur 结构，机制不同） |
 
@@ -25,7 +25,11 @@
 `exact_fermionic_Δτ(f; β, N, μ, δτ, gfsolver) -> (ImagCorrelationFunction, normdelta)`
 
 - 构造 = 反周期环单粒子矩阵 ``M = -\mathbb{1} + W\otimes S``（``S`` 反周期
-  移位）的杂质通道 Schur 补，减去 ``x=1`` 骨架得 IF-only Δ。
+  移位）的杂质通道 Schur 补，减去 ``x=1`` 骨架得 IF-only Δ。**实现 = 谱闭式**：
+  拷贝空间 N 点傅里叶块对角化 ``\oplus_f(\omega_f W - \mathbb{1})``（``\omega_f^N = -1``）
+  ⟹ Schur 标量化为 N 个标量 ``g_f = \sum_i a2_i/(\omega_f\lambda_i - 1)``
+  （h₀ 本征谱），O(K³+N·K+N²) 时间 / O(K²+N²) 内存——稠密 Schur
+  以测试 helper `dense_schur_Δτ` 保留（T4 互检严格等价）。
 - **kick 线性析出**：``\Delta_{\mathrm{IF}}(x) = x\cdot\Delta_{\mathrm{IF}}(1)``
   （对角 ``H_{\mathrm{imp}}`` 的环上 Lie ≡ Strang，踢相位纯规范）⟹ 核与
   order、``\varepsilon_d`` 无关是结构性的。
@@ -127,7 +131,7 @@ Pfaffian 装配 + Z 证书）待 GTEMPO BCS 后端消费时立项。
 
 | 文件 | 项数 | 断言层次 |
 |---|---|---|
-| `fermionic_imagtime.jl` | 54 | T2 ED 定义锚（2 模）＋ T1 装配==直接 Trotter（GL-32，N≤64）＋ T3 二阶收敛＋谱地板 |
+| `fermionic_imagtime.jl` | 123 | T2 ED 定义锚（2 模）＋ T1 装配==直接 Trotter（GL-32，N≤64）＋ T3 二阶收敛＋谱地板 ＋ T4 谱闭式↔稠密互检（kernel/detBB ~1e-12、Toeplitz 构造性、f≡0 契约） |
 | `fermionic_realtime.jl` | 58 | Z ≡ 1 证书（任意 εd/调度）＋ T2 门序列 ED 锚 ＋ T1 大 N ＋ T3 阶数标度 ＋ 结构化↔稠密 |
 | `fermionic_mixedtime.jl` | 37 | Z = τ 环踢乘积迹（K=1/K=2 × 奇偶 n）＋ kicks 非均匀复相位 ＋ 腿基契约 |
 | `bcs_imagtime.jl` | 17 | 16 维 Fock ED 环逐位（实/复 Δ）＋ Δ=0 退化 ＋ V→0 ＋ μ≠0 ＋ dispatch |

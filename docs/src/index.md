@@ -76,7 +76,7 @@ ext/
 test/
 ├── api/                   # 语义/约定 + spin-boson ED 对拍 + BCS Grassmann 装配
 ├── quapi/                 # 冻结核自由模型阶数断言 + 存档逐字节回归
-├── exact/                 # ExactEqualDistantKernel 金标准（费米 54+58+37，BCS 17+11+25）
+├── exact/                 # ExactEqualDistantKernel 金标准（费米 123+58+37，BCS 17+11+25）
 └── osee.jl                # GaussianStates 扩展 OSEE
 docs/
 └── src/                   # 本文档源

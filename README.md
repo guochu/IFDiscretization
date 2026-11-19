@@ -66,7 +66,7 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
 
 | 入口 | 轮廓 | Z 证书（normdelta 定义） | 金标准（test/exact/） |
 |---|---|---|---|
-| `exact_fermionic_Δτ` | 反周期环（纯浴，kicks 线性析出 `Δ_IF(x) = x·Δ_IF(1)`） | `Z = det(BB)·Pf(装配)` | fermionic_imagtime.jl（54） |
+| `exact_fermionic_Δτ` | 反周期环（纯浴，kicks 线性析出 `Δ_IF(x) = x·Δ_IF(1)`） | `Z = det(BB)·Pf(装配)` | fermionic_imagtime.jl（123，含 T4 谱闭式互检） |
 | `exact_fermionic_Δt`（+ 内部入口 `_cells`，未导出） | 闭 Keldysh 开线 | **Z ≡ 1 机器（任意 ε_d/调度）**；`n̄_vac = Z·(1 − A⁻¹[ā⁻_N, a⁺_N])` | fermionic_realtime.jl（58） |
 | `exact_fermionic_Δm` | 单环 τ→+→− | Keldysh 段算符精确相消 ⟹ `Z = τ 环踢乘积迹`；`normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath` | fermionic_mixedtime.jl（37） |
 
@@ -81,6 +81,10 @@ gap 复合矩阵（+ 方向 `D(x)·W` 杂质输出行 ×x，− 方向伴随 `W�
   （机器等价受测）。
 - 虚时核的严格性：`Δ_IF(x) = x·Δ_IF(1)` 恒等式（对角 H_imp 的环上 Lie ≡
   Strang，踢相位纯规范），order 无关是结构性的。
+- 虚时核实现 = **谱闭式**（2026-11-19，plan/imagtime-spectral-schur-plan.md）：
+  拷贝空间傅里叶块对角化 + Schur 标量化，O(K³+N·K+N²) 时间 / O(K²+N²) 内存
+  （稠密 Schur O((KN)³) 以测试侧 helper `dense_schur_Δτ` 形态保留，T4 互检
+  严格等价 ~1e-12）；死模过滤 + f≡0 抛 ArgumentError（与 Δt/Δm 对齐）。
 
 ## BCS 严格核（exact_bcs_Δτ/Δt/Δm，已修复）
 
@@ -124,7 +128,7 @@ test/quapi/      冻结核自由模型阶数断言 + 存档逐字节回归（18+
 test/exact/      ExactEqualDistantKernel 金标准（费米三轮廓 + BCS 三轮廓；见上表）
 ```
 
-全量：`julia --project=. test/runtests.jl`（当前 9958 绿；勿与其它 julia
+全量：`julia --project=. test/runtests.jl`（当前 10027 绿；勿与其它 julia
 进程并行——内存竞态）。
 
 文档（Documenter，镜像 QuAPI 体系）：`julia --project=docs docs/make.jl`
