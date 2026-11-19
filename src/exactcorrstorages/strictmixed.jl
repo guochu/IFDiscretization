@@ -32,9 +32,13 @@ function _strict_block(x::ExactMixedCorrelationFunction, b1::Symbol, b2::Symbol)
     return b2 === :τ ? x.G₋τ : b2 === :+ ? x.G₋₊ : x.G₋₋
 end
 
-Base.size(x::ExactMixedCorrelationFunction, i::Int...) = size(x.Gττ, 1)
+# 接口同点值 MixedCorrelationFunction：不定义 Base.size（抽象层默认 error），
+# 以 isize/rsize 承载两段节点数（τ = isize、Keldysh = rsize）
+isize(x::ExactMixedCorrelationFunction) = size(x.Gττ, 1)
+rsize(x::ExactMixedCorrelationFunction) = size(x.G₊₋, 1)
+
 Base.show(io::IO, ::MIME"text/plain", x::ExactMixedCorrelationFunction) =
-    print(io, "Exact Mixed Correlation Function [$(size(x.Gττ, 1))×$(size(x.G₊₊, 1))] (9-block pairing)")
+    print(io, "Exact Mixed Correlation Function [$(isize(x))+$(rsize(x))] (9-block pairing)")
 function Base.:(==)(x::ExactMixedCorrelationFunction, y::ExactMixedCorrelationFunction)
     all(getfield(x, f) == getfield(y, f)
         for f in fieldnames(ExactMixedCorrelationFunction))
