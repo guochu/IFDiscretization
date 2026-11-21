@@ -106,11 +106,11 @@ function nbar_vacuum(A::Matrix{ComplexF64}, Z::Number, npairs::Int)
 end
 
 """IF 路线端到端：pair 网格调度 → 带踢核 → 装配 → (Z, n̄)。"""
-function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int)
+function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int; μ::Real=0.0)
     δt = t / N
     gates, cells = pair_grid(order, N, δt)
     kicks = [exp(-im * g * εd) for g in gates]
-    kernel, ndlt = IFD.exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=0.0,
+    kernel, ndlt = IFD.exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=μ,
                                                 gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
     A = assemble(full_delta(kernel), length(gates))
     Z = ndlt * det(A)
@@ -176,6 +176,20 @@ const εd = 0.3
                 z, _ = if_route(f, order, N, t_T, β, εdv, M)
                 @test abs(z - 1) < 1e-12
             end
+        end
+    end
+
+    # ---- Z 证书扩展（2026-11-21）：非对称离散谱（prefactor 真空权重判别锚）----
+    # 对称谱（Σε=0）下 Πn̄ 与 Π(1−n̄) 简并（差 e^{βΣε}=1）——prefactor 的真空
+    # 权重约定须由非对称谱钉定：DiracDelta 单模 / DiscreteSpectrum 双线（含 μ
+    # 平移），Z ≡ 1 机器。2026-11-21 前离散谱根本进不了 exact 路线（_quad_nodes
+    # 无离散方法），prefactor 的 Πn̄ 笔误被对称谱金标准掩盖。
+    @testset "Z 证书扩展：非对称离散谱（真空权重判别锚）" begin
+        fd = DiracDelta(ω=0.8, α=0.4)
+        fdisc = DiscreteSpectrum([-0.7, 1.3], [0.2025, 0.36])
+        for (f, M) in ((fd, 1), (fdisc, 2)), order in (1, 2), N in (2, 3), μv in (0.0, 0.25)
+            z, _ = if_route(f, order, N, t_T, β, 0.0, M; μ=μv)
+            @test abs(z - 1) < 1e-12
         end
     end
 

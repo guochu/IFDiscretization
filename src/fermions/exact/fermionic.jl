@@ -243,7 +243,10 @@ function _exrt_strict_kernel(f::AbstractBoundedFunction, cells::Vector{Float64},
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return _strict_real_from_legpos(basis, Δ), prod(nbar) * detBB
+    # 真空权重归一 Π(1−n̄ₖ)（← QuAPI exactfermionic.jl `prefactor` 约定逐字——
+    # 勿换物理占据 Πn̄ₖ：差每模 e^{βεₖ}，对称谱下不可见、非对称离散谱 Z 证书
+    # 直接破；与稠密参照路径同款注释）
+    return _strict_real_from_legpos(basis, Δ), prod(1 .- nbar) * detBB
 end
 
 """
@@ -389,7 +392,12 @@ function _exrt_strict_kernel_dense(f::AbstractBoundedFunction, cells::Vector{Flo
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]
     nbar = [1 / (exp(β * ε) + 1) for ε in εs]
-    return _strict_real_from_legpos(basis, Δ), prod(nbar) * det(BB)
+    # 真空权重归一 Π(1−n̄ₖ)（← QuAPI exactfermionic.jl `prefactor` 约定逐字——
+    # Berezin 测度每 bath pair 的真空投影归一；勿换物理占据 Πn̄ₖ：那差每模
+    # e^{βεₖ}，对称谱（Σεₖ=0，金标准半圆/T2 双线）下不可见、非对称离散谱
+    # （DiracDelta/DiscreteSpectrum）Z 证书直接破（2026-11-21 定谳修复，
+    # 三谱 + μ 平移 Z ≡ 1 机器验证）
+    return _strict_real_from_legpos(basis, Δ), prod(1 .- nbar) * det(BB)
 end
 
 # 严格容器的分支块切片：腿基序（chain/legpos 同构）→ 各分支 (ā 行, a 列) 块

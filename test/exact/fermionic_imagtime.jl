@@ -304,5 +304,43 @@ const t_half = 1.0
         @test_throws ArgumentError exact_fermionic_Δτ(f0; β=β, N=6, gfsolver=IFD.EDToulouseSolver(8))
     end
 
+    # ---- T5 离散谱直取（2026-11-21 补齐）：DiracDelta / DiscreteSpectrum ----
+    # 严格核的浴侧是二次型：离散浴下核天然精确（无求积误差），模式数 = 谱线数
+    # （EDToulouseSolver 的 nbath 不消费）。锚点：
+    #  · DiscreteSpectrum 两线 == T2 尖峰 bounded 路线（M=2 GL 节点恰落在
+    #    尖峰位置 ⟹ 同一 2 模浴，机器精度）；
+    #  · DiracDelta(ω,α) ≡ 单线 DiscreteSpectrum([ω],[α])（同一 (ε,V) 模式）；
+    #  · 稠密 Schur 参照（dense_schur_Δτ 同走 _quad_nodes）互检。
+    @testset "T5 离散谱直取：DiracDelta / DiscreteSpectrum（物理模式直取）" begin
+        Es2 = [-0.7, 1.3]; Vs2 = [0.45, 0.6]
+        disc2 = DiscreteSpectrum(Es2, Vs2 .^ 2)
+        d2, nd2 = exact_fermionic_Δτ(disc2; β=β, N=4, gfsolver=IFD.EDToulouseSolver(8))
+        # T2 尖峰路线（Es2/Vs2 同源；M=2 GL 节点 = 尖峰位置）
+        mid = (Es2[1] + Es2[2]) / 2
+        half = (Es2[2] - Es2[1]) * sqrt(3) / 2
+        f2 = bounded(ω -> (abs(ω - (mid - half / sqrt(3))) < 1e-6 ? Vs2[1]^2 :
+                            abs(ω - (mid + half / sqrt(3))) < 1e-6 ? Vs2[2]^2 : 0.0) / half,
+                     mid - half, mid + half)
+        s2, nds2 = exact_fermionic_Δτ(f2; β=β, N=4, gfsolver=IFD.EDToulouseSolver(2))
+        @test maximum(abs.(d2.data.ηⱼₖ .- s2.data.ηⱼₖ)) < 1e-13
+        @test maximum(abs.(d2.data.ηₖⱼ .- s2.data.ηₖⱼ)) < 1e-13
+        @test abs(nd2 - nds2) < 1e-12 * max(1.0, abs(nd2))
+        # 稠密 Schur 参照互检（同走 _quad_nodes 的离散方法）
+        dd = dense_schur_Δτ(disc2; β=β, N=4, gfsolver=IFD.EDToulouseSolver(8))
+        @test maximum(abs.(d2.data.ηⱼₖ .- dd.ηⱼₖ)) < 1e-12
+        @test isapprox(nd2, dd.detBB; rtol=1e-12, atol=0)
+        # DiracDelta ≡ 单线 DiscreteSpectrum（逐位恒等——同一模式）
+        d1a, nd1a = exact_fermionic_Δτ(DiracDelta(ω=1.0, α=0.5); β=β, N=4, gfsolver=IFD.EDToulouseSolver(8))
+        d1b, nd1b = exact_fermionic_Δτ(DiscreteSpectrum([1.0], [0.5]); β=β, N=4, gfsolver=IFD.EDToulouseSolver(8))
+        @test d1a.data.ηⱼₖ == d1b.data.ηⱼₖ && d1a.data.ηₖⱼ == d1b.data.ηₖⱼ
+        @test nd1a == nd1b
+        # 死模契约：α = 0 线剔除（单零线 = 纯零谱 ⟹ K ≥ 1 守卫 ArgumentError）
+        @test_throws ArgumentError exact_fermionic_Δτ(DiscreteSpectrum([1.0], [0.0]); β=β, N=4, gfsolver=IFD.EDToulouseSolver(8))
+        # nbath 不消费：离散谱下 M 无关（2 线谱跑 4/64 同 kernel）
+        da, _ = exact_fermionic_Δτ(disc2; β=β, N=4, gfsolver=IFD.EDToulouseSolver(4))
+        db, _ = exact_fermionic_Δτ(disc2; β=β, N=4, gfsolver=IFD.EDToulouseSolver(64))
+        @test da.data.ηⱼₖ == db.data.ηⱼₖ && da.data.ηₖⱼ == db.data.ηₖⱼ
+    end
+
 end
-println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解 + T4 谱闭式互检）")
+println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解 + T4 谱闭式互检 + T5 离散谱直取）")
