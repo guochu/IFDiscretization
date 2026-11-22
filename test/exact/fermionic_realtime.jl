@@ -17,9 +17,8 @@
 #   (ā⁻_N, a⁺_N)·(−1) + 真空 ρ₀ 常数；**n̄_vac = Z·(1 − A⁻¹[row(ā⁻_N), col(a⁺_N)])**
 #   （(order,N) ∈ {1,2}×{2,3} 四点 machine 钉定；Z·invA = ρ[1,1] 通道）。
 #
-#   uniform API（exact_fermionic_Δt，无 kicks）：ε_d = 0 时同一公式机器锚定；
-#   ε_d ≠ 0 时为顶点移位离散 Γ(W+(x−1)P₁)^N——Z 实数但偏离 1 O(δt)
-#   （cell 复合矩阵非幺正），n̄ 通道为多 Wick 配对（非单元素），金标准不钉。
+#   uniform API（exact_fermionic_Δt）：2026-11-22 契约换代 = FormB 无 kick
+#   严格核（朴素 Trotter 链机器精确；fixture 认证参照）；旧顶点移位语义已废。
 #
 # 断言层次：
 #   Z  证书   Z ≡ 1 机器（任意 ε_d/调度/谱；最锐利的严格性证书）
@@ -29,6 +28,7 @@
 # =============================================================================
 
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
+include(joinpath(@__DIR__, "_formb_fixture.jl"))
 
 # ---------------- 调度表：补零 pair 网格（NativeExact trotter_factors 同款） ----------------
 
@@ -234,56 +234,46 @@ const εd = 0.3
         end
     end
 
-    # ---- uniform API：εd=0 机器锚 + εd≠0 Z 实数性质 ----
-    @testset "uniform API（exact_fermionic_Δt）：εd=0 机器锚" begin
-        for N in (3, 4)
-            kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
-                                              gfsolver=IFD.EDToulouseSolver(2))
-            A = assemble(full_delta(kernel), N)
-            Z = ndlt * det(A)
-            @test abs(Z - 1) < 1e-12
-            ix(j0, br) = 2 * j0 + (br === :+ ? 1 : 2)
-            nif = Z * (1 - inv(A)[ix(N, :-), ix(N, :+)])
-            # ED 对照 = W^N 链（uniform 顶点移位在 εd=0 的算符；pair 网格
-            # order-1 链为 W^{N−1}·D 型——调度不同，勿混用）
-            Es2, Vs2, _ = IFD._quad_nodes(f2, 0.0, 2)
-            h0 = zeros(ComplexF64, 3, 3)
-            for k in 1:2
-                h0[1, 1+k] = h0[1+k, 1] = Vs2[k]
-                h0[1+k, 1+k] = Es2[k]
+    # ---- uniform API（exact_fermionic_Δt）：FormB 无 kick 严格核（2026-11-22 契约换代）----
+    # 新契约 = **朴素 Trotter 离散链机器精确的纯浴核**（FormB 消元构造，见
+    # exact_fermionic_Δt docstring）；认证参照 = _formb_fixture.jl（GTEMPO
+    # compact_strictdelta 冻结常数，其消费阶梯 ≤2.5e-15 全绿）。
+    # 旧顶点移位语义（Γ(W+(x−1)P₁)^N，εd≠0 Z 偏离 1 O(δt)、金标准不钉）已废。
+    @testset "uniform API（exact_fermionic_Δt）：FormB 契约（fixture + ν det 形式）" begin
+        fd0 = DiracDelta(ω=0.8, α=0.4)
+        kernel, ndlt = exact_fermionic_Δt(fd0; β=β, N=3, t=t_T,
+                                          gfsolver=IFD.EDToulouseSolver(1))
+        Δ = full_delta(kernel)
+        @test size(Δ) == size(FORMB_FIXTURE_Δ)
+        @test maximum(abs.(Δ .- FORMB_FIXTURE_Δ)) < 1e-12
+        @test abs(real(ndlt) - FORMB_FIXTURE_ND) < 1e-12
+        @test abs(imag(ndlt)) < 1e-10
+        # ν 的 det 形式 vs second_quantized 痕比（K=1,2 交叉验证；K 大时痕比 2^K 不可行）
+        for (Km, fK) in ((1, fd0), (2, f2))
+            εs, Vs, _ = IFD._quad_nodes(fK, 0.0, Km)
+            h = zeros(ComplexF64, Km + 1, Km + 1)
+            for k in 1:Km
+                h[1, k+1] = conj(Vs[k]); h[k+1, 1] = Vs[k]; h[k+1, k+1] = εs[k]
             end
-            dim = 8
-            nbv = [1 / (1 + exp(β * e)) for e in Es2]
-            ρbath = zeros(ComplexF64, 4, 4)
-            for b in 0:3
-                ρbath[b+1, b+1] = prod((1 - nbv[k], nbv[k])[(b >> (k - 1)) & 1 + 1]
-                                       for k in 1:2)
+            Bprod = Matrix{ComplexF64}(I, Km, Km)
+            for c in 1:3
+                Bprod = exp(-1im * (t_T / 3) .* h)[2:end, 2:end] * Bprod
             end
-            U = exp(-im * (t_T / N) .* mb_generator(h0))
-            for _ in 2:N
-                U = exp(-im * (t_T / N) .* mb_generator(h0)) * U
+            R = Diagonal(exp.(Float64(β) .* (.-εs)))
+            νdet = det(I + Bprod * R * Bprod') / det(I + R)
+            dim = 1 << Km
+            sq(S) = begin
+                out = zeros(ComplexF64, dim, dim)
+                for bra in 0:dim-1, ket in 0:dim-1
+                    bm = [i for i in 0:Km-1 if (bra >> i) & 1 == 1]
+                    km2 = [i for i in 0:Km-1 if (ket >> i) & 1 == 1]
+                    length(bm) == length(km2) || continue
+                    out[bra+1, ket+1] = isempty(bm) ? 1.0 + 0.0im : det(S[bm .+ 1, km2 .+ 1])
+                end
+                out
             end
-            R = U * kron(ρbath, ComplexF64[1 0; 0 0]) * U'
-            T = reshape(R, 2, 4, 2, 4)
-            ned = real(sum(T[2, B, 2, B] for B in 1:4))
-            @test abs(nif - ned) < 1e-11
-        end
-        # εd≠0：Z 实数（虚部机器零）但偏离 1 O(δt)——顶点移位 cell 非幺正的方案性质
-        for N in (3, 4)
-            kernel, ndlt = exact_fermionic_Δt(f2; β=β, N=N, t=t_T,
-                                              gfsolver=IFD.EDToulouseSolver(2))
-            A = assemble(full_delta(kernel), N)
-            for g in 1:N
-                x = exp(-im * (t_T / N) * εd)
-                lp(j0, br, ā) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
-                ix(j0, br) = 2 * j0 + (br === :+ ? 1 : 2)
-                # 顶点移位链骨架：单位链 1 → x（替换而非叠加）
-                A[ix(g, :+), ix(g-1, :+)] += x - 1
-                A[ix(g-1, :-), ix(g, :-)] += conj(x) - 1
-            end
-            Z = ndlt * det(A)
-            @test abs(imag(Z)) < 1e-12
-            @test 0.9 < abs(Z) < 1.1
+            νsq = real(tr(sq(Bprod * R * Bprod')) / tr(sq(R)))
+            @test abs(νdet - νsq) < 1e-11 * max(1.0, abs(νsq))
         end
     end
 

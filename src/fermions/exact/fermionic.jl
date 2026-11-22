@@ -116,28 +116,195 @@ end
 "腿位（节点 j0 = 0..N；+ 支在前，支内 (a, ā) 相邻），1-based"
 _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
 
+# ---------------- FormB（形态 B）消元原语（无 kick 严格核；← GTEMPO
+# extensions/exactif compact_delta 的 GM 换代移植，2026-11-22 契约换代） ----------------
+
+"反对称占位（1-based）：上三角 += v、下三角 −= v（i≠j）。"
+_formb_put!(A::Matrix{ComplexF64}, i::Int, j::Int, value) = begin
+    i == j && return A
+    if i < j
+        A[i, j] += value
+        A[j, i] -= value
+    else
+        A[j, i] -= value
+        A[i, j] += value
+    end
+    A
+end
+
+"接口槽（c = 1..N × 支 × (bar, eta)，G 矩阵 1-based 局部索引）。"
+_formb_ifslot(c::Int, br::Symbol, stat::Symbol) =
+    4 * (c - 1) + (br === :+ ? 1 : 3) + (stat === :bar ? 0 : 1)
+
+_formb_partner(c::Int, br::Symbol, stat::Symbol) =
+    _formb_ifslot(c, br, stat === :bar ? :eta : :bar)
+
+"""Q kernel 缝合：把 (bar_imp, eta_imp) IF 对与 bath 输出 bars/输入 etas 经 U
+缝合（反对称占位）；trace_bra 翻转输出行（⟨−ψ̄| 迹端约定）。"""
+function _formb_qadd!(A::Matrix{ComplexF64}, bar_imp::Int, eta_imp::Int,
+                      bath_bars::Vector{Int}, bath_etas::Vector{Int}, U::AbstractMatrix;
+                      trace_bra::Bool=false)
+    m = length(bath_bars)
+    size(U) == (m + 1, m + 1) || throw(DimensionMismatch("Q 传播子维度不匹配"))
+    _formb_put!(A, bar_imp, eta_imp, U[1, 1])
+    for j in eachindex(bath_etas)
+        _formb_put!(A, bar_imp, bath_etas[j], U[1, j + 1])
+    end
+    for i in eachindex(bath_bars)
+        value = U[i + 1, 1]
+        trace_bra && (value = -value)
+        _formb_put!(A, bath_bars[i], eta_imp, value)
+        for j in eachindex(bath_etas)
+            bath_value = U[i + 1, j + 1]
+            trace_bra && (bath_value = -bath_value)
+            _formb_put!(A, bath_bars[i], bath_etas[j], bath_value)
+        end
+    end
+    return A
+end
+
+"数值 Pfaffian（Parlett–Reid，O(n³)）。"
+function _formb_pfaffian(A0::Matrix{ComplexF64})
+    n = size(A0, 1)
+    (n % 2 == 0) || return zero(ComplexF64)
+    A = copy(A0)
+    pf = one(ComplexF64)
+    for k in 1:2:n
+        kp = k + 1
+        kp > n && break
+        if abs(A[kp, k]) < 1e-14
+            r = 0
+            for i in (kp + 1):n
+                abs(A[i, k]) > 1e-14 && (r = i; break)
+            end
+            r == 0 && return zero(ComplexF64)
+            A[[kp, r], :] = A[[r, kp], :]
+            A[:, [kp, r]] = A[:, [r, kp]]
+        end
+        piv = A[kp, k]
+        for i in (kp + 1):n
+            c = A[i, k] / piv
+            c == 0 && continue
+            for j in (kp + 1):n
+                A[i, j] -= c * A[kp, j]
+                A[j, i] -= c * A[j, kp]
+            end
+        end
+        pf *= piv
+    end
+    return pf
+end
+
 """
     exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64))
         -> (ExactRealCorrelationFunction, normdelta)
 
-ExactEqualDistantKernel 严格 IF 核（实时 Keldysh 轮廓），元组返回 `(核, 归一常数)`——
-`exact_fermionic_Δt_cells` 的均匀网格便捷封装（cells = fill(t/N, N)，kicks = 1）。
+ExactEqualDistantKernel 严格 IF 核（实时 Keldysh 轮廓）——**无 kick 纯浴对象**
+（不含任何杂质信息），元组返回 `(核, 归一常数)`。
 
-装配契约（金标准，`test/exact/fermionic_realtime.jl`）：紧凑 (ā,a) 装配 =
-skeleton（测度 −āa·(−1) + 轮廓闭合边 (ā⁻_N,a⁺_N)·(−1) + 真空 ρ₀ 常数）
-+ data.Δ，**Z = normdelta · det(装配矩阵)**。kicks = 1（默认，纯浴）时
-ε_d 的踢相位只在骨架链条目上（+ 支链 ×x、− 支链 ×x̄，x = e^{−iαε_d}）——
-顶点移位离散 Γ(W+(x−1)P₁)^N：ε_d = 0 时 Z 恒 1（迹守恒）机器精确；
-ε_d ≠ 0 时 Z 为实数但偏离 1 O(δt)（cell 复合矩阵非幺正的方案误差）。
-**算符忠实装配**（Z ≡ 1 机器精确、观测量 = 门序列 Γ(D(x)·W) 的精确收缩）
-须走 `exact_fermionic_Δt_cells` 的 `kicks` 接口（补零 pair 网格 + 带踢
-Schur，同 GTEMPO NativeExact `exactif_pipeline` 的证明配方）。条目为
-**有向指数系数**（无 conj 翻转）。
+**契约（2026-11-22 换代）**：消费侧（杂质全项走 K 链门 + 接口反测度
+counter_c = +1 + 折返 + ρ₀）的轮廓收缩 = 同调度**直接 Trotter 离散链的迹，
+任意 ε_d 机器精确**（GTEMPO test/exactif 阶梯锚定；fixture =
+`test/exact/_formb_fixture.jl` 的认证参照）。
+
+**构造 = 形态 B（FormB）消元**：接口槽（c = 1..N × 支 × (bar, eta)）+ bath
+配对（trace_final + forward(N) + backward(N)，每对 (γ̄,γ) 测度 −1）的总
+Gaussian 经耦合演化 W = e^{−i·cell·h}（星形 h，杂质槽 ε = 0）缝合、热边
+e^{−βε} 进 bath 块，Schur 消 bath 块 `effective = E + C·(B\\Cᵀ)`，反对称化
+`G = antisym(effective)`，读矩阵 `Δ = −antisym(G⁻¹)`（FormB elim_sign = −1）；
+**normdelta = ν·Pf(G)**，ν = 浴链配分比 det 形式
+`det(I + BRB†)/det(I + R)`（B = bath 块链乘、R = e^{−βε} 对角）。
+
+腿基 = 轮廓点 1..N+1 × ± × (a, ā)（与带踢路径同 legpos 布局）；**点 1
+（t = 0 / ρ₀ 端）与点 N+1（开放端恒等窗）行列置零**——消元吸收了接口端
+结构，Δ 支撑只在接口点 2..N。连续谱走 gfsolver 求积节点离散；离散谱
+（DiracDelta/DiscreteSpectrum）物理模式直取（核对该离散链机器精确）。
+
+带踢算符忠实装配（Z ≡ 1，核携带杂质踢相位）仍走
+`exact_fermionic_Δt_cells` 的 `kicks` 接口（其金标准测试不动）。旧无 kick
+语义（顶点移位离散 Γ(W+(x−1)P₁)^N，ε_d ≠ 0 时 Z 偏离 1 O(δt)）已被本契约
+取代——GTEMPO 侧的顶点移位性质记录见其 plan §7.2。
 """
 function exact_fermionic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
                             μ::Real=0, gfsolver::ToulouseSolver=EDToulouseSolver(64))
-    return exact_fermionic_Δt_cells(f; β=β, cells=fill(Float64(t) / N, N), μ=μ,
-                                    gfsolver=gfsolver)
+    M = _nbath(gfsolver)
+    Es, Vsq, wΓ = _quad_nodes(f, μ, M)
+    keep = wΓ .> 0                      # 剔除谱为零区域的节点（死模不改配分）
+    εs = Es[keep]
+    Vs = Vsq[keep]
+    K = length(εs)
+    K >= 1 || throw(ArgumentError("谱在支撑上的积分为零（或非正）"))
+    δt = Float64(t) / N
+    cells = fill(δt, N)
+    nif = 4 * N
+    total = nif + 2K * (2N + 1)
+    A = zeros(ComplexF64, total, total)
+    h = zeros(ComplexF64, K + 1, K + 1)
+    for k in 1:K
+        h[1, k+1] = conj(Vs[k])
+        h[k+1, 1] = Vs[k]
+        h[k+1, k+1] = εs[k]
+    end
+    Us = [exp(-1im * cell .* h) for cell in cells]
+    cursor = nif
+    pair_data = NamedTuple[]
+    for label in (:trace_final, :forward, :backward)
+        count = label === :trace_final ? 1 : N
+        for step in 0:(count - 1)
+            bars = collect((cursor + 1):(cursor + K))
+            etas = collect((cursor + K + 1):(cursor + 2K))
+            push!(pair_data, (bars = bars, etas = etas))
+            cursor += 2K
+        end
+    end
+    trace_pair = pair_data[1]
+    forward_pairs = pair_data[2:(N + 1)]
+    backward_pairs = pair_data[(N + 2):end]
+    for step in 0:(N - 1)
+        input_pair = forward_pairs[step + 1]
+        output_pair = step == N - 1 ? trace_pair : forward_pairs[step + 2]
+        _formb_qadd!(A, _formb_ifslot(step + 1, :+, :bar), _formb_ifslot(step + 1, :+, :eta),
+                     output_pair.bars, input_pair.etas, Us[step + 1];
+                     trace_bra = (step == N - 1))
+    end
+    for step in 0:(N - 1)
+        output_pair = backward_pairs[step + 1]
+        input_pair = step == N - 1 ? trace_pair : backward_pairs[step + 2]
+        _formb_qadd!(A, _formb_ifslot(step + 1, :-, :bar), _formb_ifslot(step + 1, :-, :eta),
+                     output_pair.bars, input_pair.etas, adjoint(Us[step + 1]))
+    end
+    thermal = Diagonal(exp.(Float64(β) .* (.-εs)))
+    for i in 1:K, j in 1:K
+        _formb_put!(A, forward_pairs[1].bars[i], backward_pairs[1].etas[j], thermal[i, j])
+    end
+    for pair in pair_data, mode in 1:K
+        _formb_put!(A, pair.bars[mode], pair.etas[mode], -1.0)
+    end
+    E = A[1:nif, 1:nif]
+    C = A[1:nif, nif+1:end]
+    B = A[nif+1:end, nif+1:end]
+    effective = E + C * (B \ transpose(C))
+    G = 0.5 .* (effective .- transpose(effective))
+    # ν：浴链配分比（det 形式 O(K³)；B 的链乘序 = cells 升序左乘，与认证参照一致）
+    Bprod = Matrix{ComplexF64}(I, K, K)
+    for c in 1:N
+        Bprod = Us[c][2:end, 2:end] * Bprod
+    end
+    R = Diagonal(exp.(Float64(β) .* (.-εs)))
+    ν = det(I + Bprod * R * Bprod') / det(I + R)
+    Ginv = inv(G)
+    GA = (Ginv .- transpose(Ginv)) ./ 2
+    sgn = -1                            # FormB elim_sign：exp(−½jᵀG⁻¹j) 的整体负号
+    L = 4 * (N + 1)
+    Δ = zeros(ComplexF64, L, L)
+    for c in 1:N, br in (:+, :-), c2 in 1:N, br2 in (:+, :-)
+        v = sgn * GA[_formb_partner(c, br, :bar), _formb_partner(c2, br2, :eta)]
+        iszero(v) && continue
+        Δ[_exrt_legpos(c, br, true), _exrt_legpos(c2, br2, false)] = v
+    end
+    basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
+             for j0 in 0:N for br in (:+, :-) for c in (false, true)]
+    return _strict_real_from_legpos(basis, Δ), ν * _formb_pfaffian(G)
 end
 
 """
