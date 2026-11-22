@@ -4,8 +4,8 @@
 # 装配契约（2026-11-18 定谳，test 头注历史：εd≠0 装配 bug 三轮排查——
 # IB 行缩放（Z 出虚部）→ 链条目顶点移位（Z 实但偏离 1）→ 带踢 Schur 定谳）：
 #
-#   主契约 = 补零 pair 网格 + 带踢 Schur（GTEMPO NativeExact `exactif_pipeline`
-#   的证明配方）：`exact_fermionic_Δt_cells` 的 `kicks` 接口提供每 gap 幺正门
+#   主契约 = 补零 pair 网格 + 带踢 Schur：带踢核构造（`_kicks_helper.jl`，
+#   2026-11-22 从 src 移出——带踢核不属于纯耦合项导出契约）提供每 gap 幺正门
 #   相位 x_g = e^{−iα_g·ε_d}；+ 支 gap 复合矩阵 = D(x)·W（杂质输出行 ×x），
 #   − 支 = 伴随 W†D†（杂质输入列 ×x̄）。全因子幺正 ⟹
 #   **Z = normdelta · det(装配) ≡ 1 机器精确（任意 ε_d、任意调度、任意阶数）**，
@@ -28,6 +28,7 @@
 # =============================================================================
 
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
+include(joinpath(@__DIR__, "_kicks_helper.jl"))
 include(joinpath(@__DIR__, "_formb_fixture.jl"))
 
 # ---------------- 调度表：补零 pair 网格（NativeExact trotter_factors 同款） ----------------
@@ -110,8 +111,8 @@ function if_route(f, order::Int, N::Int, t::Real, β::Real, εd::Real, M::Int; �
     δt = t / N
     gates, cells = pair_grid(order, N, δt)
     kicks = [exp(-im * g * εd) for g in gates]
-    kernel, ndlt = IFD.exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=μ,
-                                                gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
+    kernel, ndlt = exact_fermionic_Δt_cells(f; β=β, cells=cells, μ=μ,
+                             gfsolver=IFD.EDToulouseSolver(M), kicks=kicks)
     A = assemble(full_delta(kernel), length(gates))
     Z = ndlt * det(A)
     return real(Z), real(nbar_vacuum(A, Z, length(gates)))
@@ -283,8 +284,8 @@ const εd = 0.3
             δt = t_T / N
             gates, cells = pair_grid(order, N, δt)
             kicks = [exp(-im * g * εdv) for g in gates]
-            k1 = IFD._exrt_strict_kernel(f16, cells, β, 0.0, M, kicks)
-            k2 = IFD._exrt_strict_kernel_dense(f16, cells, β, 0.0, M, kicks)
+            k1 = _exrt_strict_kernel(f16, cells, β, 0.0, M, kicks)
+            k2 = _exrt_strict_kernel_dense(f16, cells, β, 0.0, M, kicks)
             @test k1[1] ≈ k2[1] atol=1e-12 rtol=1e-9
             @test abs(k1[2] - k2[2]) < 1e-9 * abs(k2[2])
         end
