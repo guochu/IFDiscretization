@@ -195,6 +195,60 @@ const εd = 0.3
         end
     end
 
+    # ---- 观测量级：装配 Gaussian 读出 vs 自由热态 ED（机器精度） ----
+    # 2026-11-22 补齐（此前金标准只钉 Z）：装配 A = mixed_assemble 的逆元
+    # Ainv 承载全部等时/双时收缩——读出约定（1 模 GL-2，机器钉定）：
+    #   n(槽 c) = −Ainv[c,c] = n₀（全槽，含 τ/Keldysh 两支——平衡平移不变）；
+    #   Ainv[r,c]（r≠c，Keldysh 槽）= ⟨T_C d(t_row)d†(t_col)⟩ raw 收缩：
+    #     +/+ 对 = +Gg(t_r − t_c)（row 早）/ −Gg(t_r − t_c)（row 晚——contour
+    #     反序 lesser 翻号；对角 = −Gg(0)）；−/+ 对 = Gg(t_c − t_r)（− 支 =
+    #     逆时演化场，取向翻转）。Gg(t) = Σa2 e^{−iλt}/(1+e^{βλ})。
+    #     τ↔Keldysh 交叉块 = Matsubara-KMS 型结构，不在本测试（留白注记）。
+    @testset "观测量级：n₀ 全槽 + 双时收缩（vs 自由热态 ED，机器）" begin
+        Nτo, Nto = 3, 2
+        kernO, _ = exact_fermionic_Δm(f2; β=β, Nτ=Nτo, t=t_T, Nt=Nto,
+                                      gfsolver=IFD.EDToulouseSolver(2))
+        nO = Nτo + 2 * (Nto + 1)
+        chainO = [(br, j) for j in 1:Nτo for br in (:τ,)]
+        append!(chainO, [(br, j) for j in 1:Nto+1 for br in (:+, :-)])
+        kΔO = zeros(ComplexF64, nO, nO)
+        for (c1, (b1, j1)) in enumerate(chainO), (c2, (b2, j2)) in enumerate(chainO)
+            kΔO[c1, c2] = branch(kernO, b1, b2)[j1, j2]
+        end
+        AO = mixed_assemble(kΔO, Nτo, Nto)
+        Ainv = inv(AO)
+        EsO, VsqO, _ = IFD._quad_nodes(f2, 0.0, 2)
+        h0O = zeros(ComplexF64, 3, 3)
+        for k in 1:2
+            h0O[1, 1+k] = VsqO[k]; h0O[1+k, 1] = conj(VsqO[k]); h0O[1+k, 1+k] = EsO[k]
+        end
+        evO = eigen(Hermitian(h0O))
+        a2O = abs2.(evO.vectors[1, :])
+        GgO(t) = sum(a2O[i] * exp(-im * evO.values[i] * t) / (1 + exp(β * evO.values[i]))
+                     for i in 1:3)
+        n0O = sum(a2O[i] / (1 + exp(β * evO.values[i])) for i in 1:3)
+        tphysO(j) = (j - 1) * t_T / Nto
+        worst_n = maximum(abs.(-Ainv[c, c] - n0O) for c in 1:nO)
+        @test worst_n < 1e-12
+        worst_gg = 0.0
+        for j1 in 1:Nto+1, j2 in 1:Nto+1
+            r, c = Nτo + 2j1 - 1, Nτo + 2j2 - 1
+            # Ainv[r,c] = +Gg(t_row − t_col)（row 严格早）/
+            # −Gg(t_col − t_row)（row 晚或对角——contour 反序 lesser 翻号）
+            # ⟹ 对角 = −Gg(0)
+            Δt = tphysO(j1) - tphysO(j2)
+            pred = Δt < 0 ? GgO(Δt) : -GgO(-Δt)
+            worst_gg = max(worst_gg, abs(Ainv[r, c] - pred))
+        end
+        @test worst_gg < 1e-12
+        worst_gm = 0.0
+        for j1 in 1:Nto+1, j2 in 1:Nto+1
+            r, c = Nτo + 2j1, Nτo + 2j2 - 1
+            worst_gm = max(worst_gm, abs(Ainv[r, c] - GgO(tphysO(j2) - tphysO(j1))))
+        end
+        @test worst_gm < 1e-12
+    end
+
     # ---- 块尺寸契约：节点序同冻结核 contour_ordering 混合序（可替换冻结核） ----
     @testset "块尺寸契约：混合 contour 序" begin
         kern, _ = exact_fermionic_Δm(f2; β=β, Nτ=3, t=t_T, Nt=2,
