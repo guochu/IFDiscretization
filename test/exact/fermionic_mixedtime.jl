@@ -1,8 +1,8 @@
 # =============================================================================
 # exact/fermionic_mixedtime.jl —— 费米混合 ExactEqualDistantKernel 金标准
 #
-# 契约（2026-11-19 装配级换代，← QuAPI/src/exactfermionic.jl `exact_fermionic_Δm`
-# 母本移植 + 带踢复合 + 环状结构化求解）：
+# 契约（2026-11-19 装配级换代；2026-11-22 纯耦合项换代——公共 API 去 kicks，
+# 带踢构造迁 _kicks_helper.exact_fermionic_Δm_kicks，Z 证书×2 语义不变）：
 #
 #   轮廓 = 单环 τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→(−,1)→τ₁；τ cells
 #   （含结合 cell τ_{Nτ}→+₁）用 W^τ = e^{−δτh}、实时 ± cells 用 W^t = e^{−iδth}
@@ -26,6 +26,7 @@
 # =============================================================================
 
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
+include(joinpath(@__DIR__, "_kicks_helper.jl"))
 
 """
     compact_delta(kern, Nτ, Nt) -> Matrix
@@ -65,12 +66,19 @@ function mixed_assemble(kΔ::Matrix{ComplexF64}, Nτ::Int, Nt::Int)
     return A
 end
 
-"IF 路线端到端：(Z, normdelta)；kicksτ 长度 Nτ（轮廓序），kickst 长度 Nt"
+"IF 路线端到端：(Z, normdelta)；kicksτ 长度 Nτ（轮廓序），kickst 长度 Nt。
+kicks ≡ 1 → 公共纯耦合项 API `exact_fermionic_Δm`；否则 → 测试 helper
+`exact_fermionic_Δm_kicks`（2026-11-22 契约换代：带踢构造出公共 API）。"
 function mixed_route(f, Nτ::Int, Nt::Int, β::Real, t::Real, M::Int;
                      kicksτ=ones(Nτ), kickst=ones(Nt))
-    kern, ndlt = exact_fermionic_Δm(f; β=β, Nτ=Nτ, t=t, Nt=Nt,
-                                    gfsolver=IFD.EDToulouseSolver(M),
-                                    kicksτ=ComplexF64.(kicksτ), kickst=ComplexF64.(kickst))
+    kern, ndlt = if all(==(1), kicksτ) && all(==(1), kickst)
+        exact_fermionic_Δm(f; β=β, Nτ=Nτ, t=t, Nt=Nt,
+                           gfsolver=IFD.EDToulouseSolver(M))
+    else
+        exact_fermionic_Δm_kicks(f; β=β, Nτ=Nτ, t=t, Nt=Nt,
+                                 gfsolver=IFD.EDToulouseSolver(M),
+                                 kicksτ=ComplexF64.(kicksτ), kickst=ComplexF64.(kickst))
+    end
     Z = ndlt * det(mixed_assemble(compact_delta(kern, Nτ, Nt), Nτ, Nt))
     return kern, real(Z)
 end
@@ -174,9 +182,12 @@ const εd = 0.3
                      ones(ComplexF64, Nτ)
             kickst = withkicks ? ComplexF64.(exp(-im * δt * εd) for _ in 1:Nt) :
                      ones(ComplexF64, Nt)
-            k1, n1 = exact_fermionic_Δm(f2; β=β, Nτ=Nτ, t=t_T, Nt=Nt,
-                                        gfsolver=IFD.EDToulouseSolver(2),
-                                        kicksτ=kicksτ, kickst=kickst)
+            k1, n1 = withkicks ?
+                exact_fermionic_Δm_kicks(f2; β=β, Nτ=Nτ, t=t_T, Nt=Nt,
+                                         gfsolver=IFD.EDToulouseSolver(2),
+                                         kicksτ=kicksτ, kickst=kickst) :
+                exact_fermionic_Δm(f2; β=β, Nτ=Nτ, t=t_T, Nt=Nt,
+                                   gfsolver=IFD.EDToulouseSolver(2))
             k2, n2 = IFD._exrt_mixed_kernel_dense(f2, β, Nτ, t_T, Nt, δτ, 0.0, 2,
                                                   kicksτ, kickst)
             @test k1 ≈ k2 atol=1e-12 rtol=1e-9   # 结构化/稠密舍入级差异

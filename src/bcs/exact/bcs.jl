@@ -45,6 +45,17 @@
 # 谱离散：GL-M 节点（求积节点，M→∞ 收敛连续谱）；ε_d 不入核（调用方
 # kick 簿记，同费米 exactif）。μ=0 convention（μ≠0 抛 ArgumentError）。
 #
+# 族契约（2026-11-22 对齐，族标准 = real.jl `exact_fermionic_Δt` docstring）：
+#   ① 核 = 纯耦合项 ✓（Δ 配对属浴内容；无 ε_d、无 kick 相位；μ≠0 拒绝）；
+#   ② 严格性语义 = 装配级 raw 收缩逐位 == BCS Fock ED（金标准
+#      test/exact/bcs_{imagtime,realtime,mixedtime}.jl，实/复 Δ 定义级锚）；
+#   ③ **normdelta 留白（刻意，待 BCS 严格后端立项）**：raw 收缩容器经
+#      GTEMPO AnomalousPairing 的 deta 折叠在消费端转指数系数，归一常数
+#      的定义依赖消费装配框架（Z = 收缩 × normdelta 的「收缩」未定）——
+#      推导路线 = 轮廓 Nambu Gaussian（FormB-BCS：浴 Nambu 对沿轮廓 +
+#      BdG 演化 + 测度/闭合边）Schur 消元，normdelta = ν·Pf(G_interface)，
+#      Z 证书 = normdelta × 装配 Pfaffian == BCS Fock ED 迹；Δ=0 退化
+#      交叉锚 = 费米 det(BB) 的二倍关系。路线图见 plan §8。
 # 接口调整（rev 4）：`M::Int=64` → `gfsolver::ToulouseSolver
 # = EDToulouseSolver(64)`，节点数取 `_nbath(gfsolver)`；同 gfsolver 下与原版
 # 逐位一致。δτ/δt 旋钮（2026-11-19）：τ 网格步长显式化（默认 β/N，费米
@@ -91,6 +102,9 @@ bcs_Gtau_neg(D, τ::Real, p::Int, q::Int, β::Real) =
 严格装配虚时核：四分量环 𝒢_pq(τ_m)（点值 + KMS/δ 跳变闭式），τ_m=(d−1)δτ。
 环是 τ-差的 Toeplitz（KMS），CorrelationMatrix 向量存储无损，故保留点值容器
 （费米 exact_fermionic_Δτ 同款）。
+
+族契约（见文件头注）：纯耦合项 ✓、ED 数据锚 ✓；**normdelta 留白**（待
+BCS 严格后端立项——τ 环 Nambu Gaussian 消元闭式 + Z 证书，plan §8）。
 """
 function exact_bcs_Δτ(f::AbstractBoundedFunction; β::Real, N::Int, Δ::Number=0,
                       μ::Real=0, δτ::Real=β / N,
@@ -119,6 +133,9 @@ end
 lesser=(I−M₀) 权 + 反对易翻号），四 Nambu 分量各自给出四分支块
 G[b1,b2][i,j] = C(v=(b1,i), w=(b2,j))——row = Φ_p 侧、col = Φ_q† 侧的
 包约定槽位（含 (+,+)、(−,−) 对角块；等时点走 greater/0⁺ 侧）。
+
+族契约（见文件头注）：纯耦合项 ✓、ED 数据锚 ✓；**normdelta 留白**（待
+BCS 严格后端立项——Keldysh 线 Nambu Gaussian 消元 + Z 证书，plan §8）。
 """
 function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
                       Δ::Number=0, μ::Real=0,
@@ -177,6 +194,9 @@ G[b1,b2][i,j] = raw 收缩 ⟨T_C Φ_p(b1,i)Φ_q†(b2,j)⟩ 的包约定槽位�
 
 节点序同冻结核 contour_ordering 混合序：τ i = 1..Nτ（τ_i=(i−1)δτ）、
 Keldysh j = 1..Nt+1（每节点 + 先 − 后，t_{j−1}=(j−1)δt）。
+
+族契约（见文件头注）：纯耦合项 ✓、ED 数据锚 ✓；**normdelta 留白**（待
+BCS 严格后端立项——L 轮廓 Nambu Gaussian 消元 + Z 证书，plan §8）。
 """
 function exact_bcs_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                       Nt::Int, Δ::Number=0, μ::Real=0, δτ::Real=β / Nτ,

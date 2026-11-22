@@ -1,7 +1,9 @@
 # =============================================================================
 # exact/mixed.jl —— exact_fermionic_Δm：混合 Kadanoff–Baym 轮廓严格 IF 核
-# ⚠️ 现行为带 kicksτ/kickst 接口（杂质相位进核）——**契约尚未换代**到
-# 纯耦合项严格核（族契约见 real.jl）；换代时同 real.jl 的 FormB 路线。
+# 契约 = 纯耦合项严格核（族契约见 real.jl exact_fermionic_Δt docstring）。
+# 2026-11-22 契约换代：kicksτ/kickst 接口（杂质相位进核）从公共 API 移除——
+# 带踢构造保留于 _mixed_kernel（内部），金标准测试经 test/exact/_kicks_helper.jl
+# 的 exact_fermionic_Δm_kicks 消费（同 exact_fermionic_Δt_cells 先例）。
 # =============================================================================
 # ------------------------------ 混合时间 ------------------------------ #
 
@@ -9,42 +11,41 @@
     exact_fermionic_Δm(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ, gfsolver=EDToulouseSolver(64))
         -> (ExactMixedCorrelationFunction, normdelta)
 
-ExactEqualDistantKernel 严格 IF 核（混合 Kadanoff–Baym L 轮廓，装配级配对核）——元组返回
-`(核, 归一常数)`。轮廓**单环** τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→
-(−,1)→τ₁：τ cells（含结合 cell τ_{Nτ}→+₁）用 W^τ = e^{−δτ·h}，实时 ± cells
-用 W^t = e^{−iδt·h}（− 支共轭），(+,Nt+1)→(−,Nt+1) 闭合边带费米迹负号、
-(−,1)→τ₁ 环回边权 1（热演化在 τ 段显式进行，无热边 r）。
+ExactEqualDistantKernel 严格 IF 核（混合 Kadanoff–Baym L 轮廓）——**纯耦合项
+严格核**（exact 核族统一契约；Δτ/Δt 同族按此对齐）：
 
-腿基同冻结核（`contour_ordering` 混合序：τ 节点 1..Nτ 后接 Keldysh 节点
-(+,jj)/(−,jj)，每节点 (a, ā) 相邻），可直接替换 `fermionic_Δm` 的 Δ。
+# 契约
+1. **核 = 纯耦合项**：核内只含浴 + 杂质-浴耦合 h₀（谱 `f` 经 `gfsolver`
+   离散的星形模）与热力学 β——**不含任何杂质哈密顿量信息**（无 ε_d、无
+   劈分阶数、无 kick 相位）。IF 装配对一般杂质模型无假设（纯浴对象）。
+   （历史：2026-11-22 前公共 API 带 kicksτ/kickst 杂质相位接口，已移测试
+   helper `exact_fermionic_Δm_kicks`——带踢 Z ≡ τ 环踢乘积迹证书是底层
+   W/Schur 数学的最锐利锚，金标准专用。）
+2. **严格性语义**：装配级消费（紧凑 (ā,a) 链序装配 = 测度 −1 + 单位链 +
+   两条闭合边，金标准 `test/exact/fermionic_mixedtime.jl` 的
+   `mixed_assemble`）的轮廓收缩 Z 与 τ 环直接 Fock 演化迹 **机器精确**：
+   Z == Tr_Fock[e^{−β·h₀ 二次量子化}]/Z_bath（纯核与杂质无关；
+   带踢版同式 == τ 环踢乘积迹/Z_bath——Keldysh 段算符层面精确相消
+   P₊P₋ = I，与实时段离散化无关）。腿基同冻结核（contour_ordering
+   混合序），可直接替换 `fermionic_Δm` 的 Δ。
+3. **归一契约**：`Z = 装配收缩 × normdelta`（比值观测量严格相消）；
+   **normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath**（n = Nτ + 2(Nt+1) 轮廓
+   节点数；折叠 Berezin 符号 + impurity 折叠，K=1/K=2 × 奇偶 n 四点机器
+   钉定）。BB 消元走环状块结构求解（单环仿射前推，O(n·K²·Limp + K³)；
+   稠密参照 `_exrt_mixed_kernel_dense`）。死模过滤与 Δt/Δτ 一致。
 
-kicks：`kicksτ[j]`（长度 Nτ：轮廓序 τ cells——j = 1..Nτ−1 为内部 cell
-τⱼ→τⱼ₊₁、j = Nτ 为结合 cell τ_{Nτ}→+₁）与 `kickst[jj]`（长度 Nt：+ cells；
-− cells 自动取共轭伴随）为各 cell 的杂质门相位——
-带踢复合同实时版（+ 方向 D(x)·W 杂质输出行 ×x，− 方向 W†D† 杂质输入列
-×x̄）。**Keldysh 段在算符层面精确求和相消（含任意幺正踢）：P₊P₋ = I**，
-⟹ 全迹收缩 Z = τ 环踢乘积的精确迹（与离散化无关的机器恒等式）。
-
-**normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath**（n = Nτ + 2(Nt+1) 轮廓节点数；
-折叠 Berezin 符号 + impurity 折叠，K=1/K=2 × 奇偶 n 四点机器钉定）。装配契约（金标准，`test/exact/fermionic_mixedtime.jl`）：
-装配 = 测度 −1 + 单位链 + 两条闭合边（Keldysh 迹 −1、环回 +1）+ data.Δ ⟹
-**Z = normdelta·det(装配) == Tr_Fock[τ 环踢乘积]/Z_bath（任意 kicks 机器精确）**。
-BB 消元走环状块结构求解（单环仿射前推，O(n·K²·Limp + K³)；稠密参照
-`_exrt_mixed_kernel_dense`）。
+轮廓（单环）τ₁→…→τ_{Nτ}→(+,1)→…→(+,Nt+1)→(−,Nt+1)→…→(−,1)→τ₁：τ cells
+（含结合 cell τ_{Nτ}→+₁）用 W^τ = e^{−δτ·h}，实时 ± cells 用 W^t = e^{−iδt·h}
+（− 支共轭），(+,Nt+1)→(−,Nt+1) 闭合边带费米迹负号、(−,1)→τ₁ 环回边权 1
+（热演化在 τ 段显式进行，无热边 r）。
 """
 function exact_fermionic_Δm(f::AbstractBoundedFunction; β::Real, Nτ::Int, t::Real,
                             Nt::Int, μ::Real=0, δτ::Real=β / Nτ,
-                            gfsolver::ToulouseSolver=EDToulouseSolver(64),
-                            kicksτ::AbstractVector{<:Number}=ones(Nτ),
-                            kickst::AbstractVector{<:Number}=ones(Nt))
+                            gfsolver::ToulouseSolver=EDToulouseSolver(64))
     Nτ >= 1 || throw(ArgumentError("Nτ 至少为 1"))
     Nt >= 1 || throw(ArgumentError("Nt 至少为 1"))
-    length(kicksτ) == Nτ ||
-        throw(DimensionMismatch("kicksτ 须长 Nτ（轮廓序 τ cells：Nτ−1 内部 + 结合）"))
-    length(kickst) == Nt ||
-        throw(DimensionMismatch("kickst 须长 Nt（+ cells）"))
     _mixed_kernel(f, β, Nτ, t, Nt, Float64(δτ), μ, _nbath(gfsolver),
-                  ComplexF64.(kicksτ), ComplexF64.(kickst); dense=false)
+                  ones(ComplexF64, Nτ), ones(ComplexF64, Nt); dense=false)
 end
 
 # 装配本体（dense=false 结构化求解 / dense=true 稠密参照）
