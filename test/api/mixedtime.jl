@@ -151,3 +151,9 @@ end
 		end
 	end
 end
+
+# μ 约定注记（2026-11-20 审计）：Δm 与 Δt 同款——μ 只进占据因子
+# （fermidirac(β, ε−μ) 的 g₁/g₂），谱不 shift、载流子裸 ε/τ 因子；τ 腿的
+# hⱼₖ 族以 μ 显式进 g 因子（同 fⱼₖ_i 族、非 spectrumshift 路线）。
+# 本路线不消费 spectrumshift，与 DiracDelta/DiscreteSpectrum 的方向修复无关；
+# μ ≠ 0 的值级锚目前缺失（历史现状），如需固化另立 ED 参照守卫。

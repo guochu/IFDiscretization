@@ -132,3 +132,10 @@ end
 		end
 	end
 end
+
+# μ 约定注记（2026-11-20 审计）：Δt 与 Δm 同款——μ 只进占据因子
+# （fermidirac(β, ε−μ) 的 g₁/g₂），谱不 shift、载流子裸 ε；本路线不消费
+# spectrumshift，与 DiracDelta/DiscreteSpectrum 的方向修复（见 imagtime.jl
+# 守卫头注）无关。μ ≠ 0 的值级锚缺失（历史现状）：有限 δt 的胞积分携带
+# sinc 型 ε 结构，谱平移不等于纯相位规范，代数恒等式守卫不可行——物理锚
+# 须走 ED 路线（参照 normalbath/fewmodesbath 的 ED 对拍范式，另立时补）。

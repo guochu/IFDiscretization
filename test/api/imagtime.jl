@@ -78,13 +78,15 @@ end
 	ω0 = 1.0
 	nmax = 2000
 
-	# analytic benchmark: for a single fermionic level at ω0+μ the
-	# Matsubara-domain hybridization Δ(iωₙ) = 1/(iωₙ-(ω0+μ)) reproduces
+	# analytic benchmark: for a single fermionic level at the grand-canonical effective energy ω0-μ the
+	# (巨正则极点 ε−μ，教科书约定 1/(iω+μ−ε)；2026-11-20 方向修复——此前离散族
+	# 实现为 ω0+μ，与 bounded 族及物理极点相反)
+	# Matsubara-domain hybridization Δ(iωₙ) = 1/(iωₙ-(ω0-μ)) reproduces
 	# fermionic_Δτ(DiracDelta(ω=ω0); μ) via the doubly-integrated Matsubara
 	# sum.  The two storage conventions split the diagonal differently, so the
 	# materialized Δ[i,j] matrices are compared.
 	for μ in (0.0, 0.3)
-		Δiw = [1/(im*ω - (ω0+μ)) for ω in ifrequencies(β, nmax)]
+		Δiw = [1/(im*ω - (ω0-μ)) for ω in ifrequencies(β, nmax)]
 		m1 = Matrix(Δiw_to_Δτ(Δiw, β=β, N=N).data)
 		m2 = Matrix(fermionic_Δτ(DiracDelta(ω=ω0), β=β, N=N, μ=μ).data)
 		@test m1 ≈ m2 atol=1.0e-8
@@ -114,10 +116,11 @@ end
 	# between ηⱼₖ[1] and ηₖⱼ[1] by construction, while fermionic_Δτ splits it
 	# into the two triangle integrals, so only lags ≥ 2 and the diagonal sum
 	# agree at the raw-vector level (the materialized matrices above already
-	# pin the sum).  NOTE the pole position ω0+μ: `spectrumshift` moves a
+	# pin the sum).  Pole position ω0−μ（巨正则 ε−μ；2026-11-20 方向修复——`spectrumshift` 此前把
+# DiracDelta 移为 ω → ω+μ，与 bounded 族及物理极点相反，见 bounded 块注释）。
 	# DiracDelta as ω → ω+μ.
 	for μ in (-0.3, 0.0, 0.3)
-		Δiw = [1/(im*ω - (ω0+μ)) for ω in ifrequencies(β, nmax)]
+		Δiw = [1/(im*ω - (ω0-μ)) for ω in ifrequencies(β, nmax)]
 		c1 = Δiw_to_Δτ(Δiw, β=β, N=N)
 		c2 = fermionic_Δτ(DiracDelta(ω=ω0), β=β, N=N, μ=μ)
 		@test c1.data.ηⱼₖ[2:end] ≈ c2.data.ηⱼₖ[2:end] atol=1.0e-8
@@ -155,8 +158,35 @@ end
 	@test_throws ErrorException Δiw_to_Δτ(Δiw, β=β, N=N)
 
 	# a single time slice keeps only the equal-time element
-	Δiw = [1/(im*ω - (ω0+0.3)) for ω in ifrequencies(β, nmax)]
+	Δiw = [1/(im*ω - (ω0-0.3)) for ω in ifrequencies(β, nmax)]
 	c1 = Δiw_to_Δτ(Δiw, β=β, N=1)
 	c2 = fermionic_Δτ(DiracDelta(ω=ω0), β=β, N=1, μ=0.3)
 	@test (c1.data.ηⱼₖ[1] + c1.data.ηₖⱼ[1]) ≈ (c2.data.ηⱼₖ[1] + c2.data.ηₖⱼ[1]) atol=1.0e-8
+end
+
+# ---------------------------------------------------------------------------
+# μ 折叠契约守卫（2026-11-20）：spectrumshift = 化学势吸收（参数平移 f(ε+μ)，
+# 支撑集 ω − μ）。契约恒等式：Δ(f, β, N, μ) ≡ Δ(shift(f, μ), β, N, 0)。
+# 离散族（DiracDelta/DiscreteSpectrum）曾以几何平移 ω+μ 实现（方向相反——有限
+# μ 的离散 bath 核全体错；μ=0 时 no-op 不可见，结构断言（转置/可加）不设防）。
+# 此 testset 固化修复后的方向；fhand 一律手工构造（不经 spectrumshift 原语，
+# 防止以 primitive 自证）。
+# ---------------------------------------------------------------------------
+
+@testset "spectrumshift μ 吸收契约（Δτ: Δ(f,μ) ≡ Δ(shift(f,μ),0)）" begin
+	β = 5; μ = 0.3
+	# DiracDelta / DiscreteSpectrum（修复焦点；逐位）
+	for (f, fhand) in ((DiracDelta(ω=0.5), DiracDelta(ω=0.5 - μ)),
+	                   (DiscreteSpectrum([0.3, 0.9], [0.5, 0.2]),
+	                    DiscreteSpectrum([0.3 - μ, 0.9 - μ], [0.5, 0.2])))
+		@test branch(fermionic_Δτ(f, β=β, N=10, μ=μ)) ==
+		      branch(fermionic_Δτ(fhand, β=β, N=10, μ=0))
+		@test branch(bosonic_Δτ(f, β=β, N=10, μ=μ)) ==
+		      branch(bosonic_Δτ(fhand, β=β, N=10, μ=0))
+	end
+	# bounded（generic 语义锚；未受 bug 影响，防未来反向）
+	f = semicircular()
+	fhand = bounded(ε -> f.f(ε + μ), lowerbound(f) - μ, upperbound(f) - μ)
+	@test branch(fermionic_Δτ(f, β=β, N=10, μ=μ)) ==
+	      branch(fermionic_Δτ(fhand, β=β, N=10, μ=0))
 end
