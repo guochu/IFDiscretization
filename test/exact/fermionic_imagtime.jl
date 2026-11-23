@@ -134,8 +134,14 @@ function dense_schur_Δτ(f::AbstractBoundedFunction; β::Real, N::Int,
     Δ = Δ_full + Matrix{ComplexF64}(I, N, N) - S   # 减 x=1 骨架（−I + S）⟹ IF-only
     ηⱼₖ = [Δ[1 + d, 1] for d in 0:N-1]
     ηₖⱼ = vcat([zero(Δ[1, 1])], [Δ[1, 1 + d] for d in 1:N-1])
+    # detBB = raw 浴块行列式。src exact_fermionic_Δτ 的 normdelta 在奇 (N·K) 带
+    # (−1) 补偿（见 imag.jl 尾注；T4 的 K ∈ {2,8,48} 全偶 ⟹ 本文件互检不触发）。
+    # 如需与 src nd 逐位对齐：nd_sign(N, K, detBB)。
     return (ηⱼₖ=ηⱼₖ, ηₖⱼ=ηₖⱼ, detBB=det(BB), Δ=Δ)
 end
+
+"奇 (N·K) nd 符号补偿（与 src exact_fermionic_Δτ 同款；见 imag.jl 尾注）"
+nd_sign(N::Int, K::Int, detBB::Number) = isodd(N * K) ? -detBB : detBB
 
 "S 环（反周期移位，S[k,k−1] = 1、S[1,N] = −1）：T4 的 Δ 骨架重构用"
 function S_ring(N::Int)
@@ -342,5 +348,58 @@ const t_half = 1.0
         @test da.data.ηⱼₖ == db.data.ηⱼₖ && da.data.ηₖⱼ == db.data.ηₖⱼ
     end
 
+    # ---- T6 奇 N 符号锚（2026-11-23 补齐）：nd·Pf(B) == Fock ED 全 (N, K) 奇偶 ----
+    # 历史：T1/T2 ED 锚全偶 N，比值观测量（n̄/G）nd 相消 ⟹ normdelta 的奇 (N·K)
+    # 符号缺一路 ED 验证，K 奇 × N 奇时 Z = −真值（本 testset 钉定补偿）。
+    # 参照 = Fock ED Lie 环 tr[(e^{−δτϵn̂}e^{−δτh₀})^N]（定义级真值，T2 同源语义）。
+    @testset "T6 奇 N 符号锚：nd·Pf(B) == Fock ED（K=1/2/3 × N 奇偶全覆盖）" begin
+        β6 = 0.6
+        function fock_lie_ring(spectrum, ϵ, βv, Nv)
+            δτv = βv / Nv
+            Es, Vsq, _ = IFD._quad_nodes(spectrum, 0.0, 64)
+            nm = length(Es) + 1
+            ann(m) = begin
+                dim = 2^nm
+                a = zeros(ComplexF64, dim, dim)
+                for st in 0:dim-1
+                    (st >> m) & 1 == 1 || continue
+                    a[st ⊻ (1 << m) + 1, st + 1] = (-1)^count_ones(st & ((1 << m) - 1))
+                end
+                a
+            end
+            av = [ann(m) for m in 0:nm-1]
+            num(m) = av[m+1]'av[m+1]
+            Himp = ϵ * num(0)
+            Hq = zeros(ComplexF64, 2^nm, 2^nm)
+            for (k, ε) in enumerate(Es)
+                Hq += Vsq[k] * av[1]'av[k+1] + conj(Vsq[k]) * av[k+1]'av[1] + ε * num(k)
+            end
+            D = exp(-δτv * Himp)
+            W = exp(-δτv * Matrix(Hermitian(Hq)))
+            return real(tr((D * W)^Nv))
+        end
+        for (spec, Kexpect) in ((DiscreteSpectrum([1.0], [0.5]), 1),
+                                (DiscreteSpectrum([0.4, 1.0], [0.3, 0.5]), 2),
+                                (DiscreteSpectrum([0.3, 0.7, 1.2], [0.4, 0.3, 0.2]), 3))
+            for Nv in (2, 3, 4, 5)
+                δτv = β6 / Nv
+                εv = 0.3
+                xv = exp(-δτv * εv)
+                kern6, nd6 = exact_fermionic_Δτ(spec; β=β6, N=Nv)
+                K6 = Matrix(kern6.data)
+                B6 = zeros(ComplexF64, 2Nv, 2Nv)
+                for i in 1:Nv; B6[2i, 2i-1] += -1.0; B6[2i-1, 2i] -= -1.0; end
+                for i in 1:Nv-1; B6[2(i+1), 2i-1] += xv; B6[2i-1, 2(i+1)] -= xv; end
+                B6[2, 2Nv-1] += -xv; B6[2Nv-1, 2] -= -xv
+                for i in 1:Nv, j in 1:Nv
+                    B6[2i, 2j-1] += xv * K6[i, j]; B6[2j-1, 2i] -= xv * K6[i, j]
+                end
+                Z6 = real(nd6 * _pf(B6))
+                Zed = fock_lie_ring(spec, εv, β6, Nv)
+                @test isapprox(Z6, Zed; rtol=1e-10, atol=1e-12)
+            end
+        end
+    end
+
 end
-println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解 + T4 谱闭式互检 + T5 离散谱直取）")
+println("费米虚时 ExactEqualDistantKernel 金标准通过 ✓（T2 ED 锚 + T1 对齐 + T3 严格解 + T4 谱闭式互检 + T5 离散谱直取 + T6 奇 N 符号锚）")

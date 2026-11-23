@@ -101,6 +101,13 @@ function exact_fermionic_Δτ(f::AbstractBoundedFunction; β::Real, N::Int,
         2 * half < length(facs) && push!(nxt, facs[end])
         facs = nxt
     end
-    # 必要常数项：纯浴环浴块行列式，装配 Z = normdelta · Pf(B)（金标准契约）
-    return ImagCorrelationFunction(CorrelationMatrix(ηⱼₖ, ηₖⱼ)), facs[1] * prod(g)
+    # 必要常数项：纯浴环浴块行列式，装配 Z = normdelta · Pf(B)（金标准契约）。
+    # 奇 (N·K) 符号补偿（2026-11-23 ED 定谳）：nd·Pf(B) 契约在 N·K 奇时与直接
+    # Trotter 迹差 −1（单模/三模浴奇 N 翻负、双模浴全程 +1，比值 = (−1)^{NK}，
+    # K = 死模过滤后的浴模数）。比值观测量（n̄/G）normdelta 相消不可见、T4
+    # 谱↔稠密为同约定对拍亦不可见——此前金标准 T1/T2 全偶 N，奇 N ED 锚
+    # （fermionic_imagtime.jl T5）钉定后固化。
+    nd = facs[1] * prod(g)
+    isodd(N * length(εs)) && (nd = -nd)
+    return ImagCorrelationFunction(CorrelationMatrix(ηⱼₖ, ηₖⱼ)), nd
 end
