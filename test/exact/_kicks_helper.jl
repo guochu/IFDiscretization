@@ -267,30 +267,3 @@ function _exrt_strict_kernel_dense(f::AbstractBoundedFunction, cells::Vector{Flo
     # 三谱 + μ 平移 Z ≡ 1 机器验证）
     return IFD._strict_real_from_legpos(basis, Δ), prod(1 .- nbar) * det(BB)
 end
-
-"""
-    exact_fermionic_Δm_kicks(f; β, Nτ, t, Nt, μ=0, δτ=β/Nτ,
-                             gfsolver=EDToulouseSolver(64), kicksτ, kickst)
-        -> (ExactMixedCorrelationFunction, normdelta)
-
-混合轮廓带踢核（金标准测试专用，2026-11-22 契约换代自公共 API 移出）：
-`kicksτ[j]`（长 Nτ：轮廓序 τ cells——j = 1..Nτ−1 内部 cell、j = Nτ 结合
-cell）与 `kickst[jj]`（长 Nt：+ cells；− cells 自动取共轭伴随）为各 cell
-的杂质门相位（+ 方向 D(x)·W 杂质输出行 ×x，− 方向 W†D† 杂质输入列 ×x̄）。
-数学本体 = `IFD._mixed_kernel`（公共 `exact_fermionic_Δm` = 本构造
-kicks ≡ 1 的纯耦合项退化）。**Keldysh 段在算符层面精确求和相消
-（含任意幺正踢）：P₊P₋ = I** ⟹ 全迹收缩 Z = τ 环踢乘积的精确迹。
-normdelta = (−1)^{n(K+1)}·det(BB)/Z_bath（带踢与纯核同式）。
-"""
-function exact_fermionic_Δm_kicks(f::AbstractBoundedFunction; β::Real, Nτ::Int,
-                                  t::Real, Nt::Int, μ::Real=0, δτ::Real=β / Nτ,
-                                  gfsolver::ToulouseSolver=IFD.EDToulouseSolver(64),
-                                  kicksτ::AbstractVector{<:Number}=ones(Nτ),
-                                  kickst::AbstractVector{<:Number}=ones(Nt))
-    length(kicksτ) == Nτ ||
-        throw(DimensionMismatch("kicksτ 须长 Nτ（轮廓序 τ cells：Nτ−1 内部 + 结合）"))
-    length(kickst) == Nt ||
-        throw(DimensionMismatch("kickst 须长 Nt（+ cells）"))
-    IFD._mixed_kernel(f, β, Nτ, t, Nt, Float64(δτ), μ, IFD._nbath(gfsolver),
-                      ComplexF64.(kicksτ), ComplexF64.(kickst); dense=false)
-end

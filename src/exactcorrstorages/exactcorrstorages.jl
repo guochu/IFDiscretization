@@ -6,5 +6,6 @@
 # 头注）——故按点值容器的存储风格，以**稠密分支块为字段**携带全部独立数据，
 # 不带腿基字段（轮廓节点序 = 各自 contour_ordering 约定，由块尺寸 + 类型
 # 完全确定）。`branch` 按分支对直接返回对应字段（无损）。
+# 2026-11-25 轴面收敛：ExactMixed 变体随混合轴严格核退役（strictmixed.jl 删，
+# 恢复入口见 README todolist），现仅存实时容器。
 include("strictreal.jl")
-include("strictmixed.jl")

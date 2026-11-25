@@ -3,11 +3,17 @@
 #   DiscretizationScheme
 #   ├── FrozenKernel
 #   │   └── QuAPI()                    # 一阶 Trotter 冻结核
-#   └── ExactKernel                    # 严格核抽象族（exact API 实装）
-#       └── ExactEqualDistantKernel(solver)   # 等距离散严格核（现行）
+#   └── ExactKernel                    # 严格核抽象族
+#       └── ExactEqualDistantKernel(solver)   # 等距离散严格核
 #           └── solver::ToulouseSolver
 #               ├── EDToulouseSolver(nbath)   # 本征路线（现行）
 #               └── AnaToulouseSolver()       # 解析路线（扩展位）
+#
+# 分派面（2026-11-25 轴面收敛）：严格核仅存实轴费米 `exact_fermionic_Δt`；
+# 虚轴/混合轴核（`exact_fermionic_Δτ/Δm`）与玻色/BCS 严格核
+# （`exact_bosonic_Δτ/Δt/Δm`、`exact_bcs_Δτ/Δt/Δm`）已退役——统一入口对其
+# scheme 路由抛「未实现」错误（类型层保留为将来恢复/扩展的挂载点，恢复
+# 入口见 README todolist）。
 
 """
     abstract type DiscretizationScheme end
@@ -81,10 +87,10 @@ abstract type ExactKernel <: DiscretizationScheme end
     ExactEqualDistantKernel(solver)
     ExactEqualDistantKernel()  # = ExactEqualDistantKernel(EDToulouseSolver(64))，现行默认
 
-等距离散的严格影响泛函核方案（原 `ExactEqualDistantKernel`），格林函数由内插求解器
-`solver` 提供。exact API 实装自 QuAPI/exactif/test 收编（kernel 装配逐字
-未动）；2026-11-19 起装配契约升级为带踢 Schur + 元组返回
-（金标准 test/exact/fermionic_{imagtime,realtime,mixedtime}.jl）。
+等距离散的严格影响泛函核方案，格林函数由内插求解器
+`solver` 提供。2026-11-25 轴面收敛后仅实轴费米可分派（`Δt` 统一入口 +
+`exact_fermionic_Δt` 直连）；其余统计/轮廓路由抛「未实现」（恢复入口见
+README todolist）。
 """
 struct ExactEqualDistantKernel{S <: ToulouseSolver} <: ExactKernel
     solver::S

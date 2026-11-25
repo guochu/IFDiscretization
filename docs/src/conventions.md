@@ -125,12 +125,12 @@ DiscretizationScheme
             └── AnaToulouseSolver()        # 解析路线（扩展位，未实装）
 ```
 
-| 轮廓 | 冻结核（`QuAPI()`） | 严格核（`ExactEqualDistantKernel()`） |
+| 轮廓 | 冻结核（`QuAPI()`） | 严格核（费米实轴；2026-11-25 轴面收敛后唯一严格分派面） |
 |---|---|---|
-| `Δτ` | 点值容器 | 费米 `(ImagCorrelationFunction, normdelta)`；玻色/BCS 点值容器 |
-| `Δt` | 点值容器 | 费米 `ExactRealCorrelationFunction`；玻色点值；BCS `BCSCorrelationFunction{ExactReal}` |
-| `Δm` | 点值容器 | 费米 `ExactMixedCorrelationFunction`；玻色点值；BCS `BCSCorrelationFunction{ExactMixed}` |
+| `Δτ` | 点值容器 | 退役 |
+| `Δt` | 点值容器 | 费米 `ExactRealCorrelationFunction`（统一入口只返回容器；normdelta 经直连 `exact_fermionic_Δt` 获取） |
+| `Δm` | 点值容器 | 退役 |
 
-费米严格核元组返回的第二分量 `normdelta` 是装配级 Z 证书
-（[ExactKernel Contract](@ref "ExactKernel Contract")）；统一入口对 Δτ 透传元组、Δt/Δm 只返回
-容器（normdelta 经直接调用 `exact_*` 获取）。
+费米实轴严格核的装配级 Z 证书（`normdelta`）见
+[ExactKernel Contract](@ref "ExactKernel Contract")；虚轴/混合轴/玻色/BCS 严格核
+已退役（统一入口路由抛「未实现」，恢复入口见包 README todolist）。

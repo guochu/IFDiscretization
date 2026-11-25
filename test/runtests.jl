@@ -9,10 +9,11 @@
 #               模型上，朴素 face-value 装配 ⇒ 一阶、K/IF 拆分（Weyl-K）⇒ 二阶
 #               （9 核全覆盖；目录结构镜像 performance/，求解器为快照拷贝）
 #               + 存档逐字节回归
-#   - exact/    ExactEqualDistantKernel 金标准（2026-11-18 收窄）：基于包内 exact_* 函数
-#               （纯浴严格 IF 核）装配的无相互作用模型 1/2 阶 Trotter 演化
-#               == 同阶直接 Trotter 演化（逐位/机器精度），按 bath×轮廓
-#               逐文件（fermionic_imagtime.jl …）
+#   - exact/    严格核金标准（2026-11-25 轴面收敛后仅存实轴）：fermionic_realtime.jl
+#               ——包内 exact_fermionic_Δt（纯浴严格 IF 核）装配的无相互作用
+#               模型 1/2 阶 Trotter 演化 == 同阶直接 Trotter 演化（逐位/机器
+#               精度）。虚轴/混合轴与玻色/BCS 严格核退役（README todolist）；
+#               退役路由的分派行为（抛「未实现」）由 scheme 分派 testset 钉住
 #   - osee.jl   GaussianStates 扩展的 corr→系数态 OSEE 测试（purify/解析锚；
 #               稠密张量锚段留在 QuAPI/test/osee.jl）。默认环境（@v1.10）
 #               dev 了 GaussianStates 时经 `julia --project=. test/runtests.jl`
@@ -73,14 +74,9 @@ include("quapi/assert_order.jl")
 include("quapi/firstorder/runtests.jl")
 include("quapi/secondorder/runtests.jl")
 
-### ExactEqualDistantKernel 金标准：包内 exact_* 函数装配 == 同阶直接 Trotter（逐 bath×轮廓）
+### 严格核金标准：实轴费米（exact_fermionic_Δt 装配 == 同阶直接 Trotter，逐位）
 
-include("exact/fermionic_imagtime.jl")
 include("exact/fermionic_realtime.jl")
-include("exact/fermionic_mixedtime.jl")
-include("exact/bcs_imagtime.jl")
-include("exact/bcs_realtime.jl")
-include("exact/bcs_mixedtime.jl")
 
 ### 存档回归：一阶/二阶装配基准 vs 存档 CSV 逐字节（数值移植的最终防线；
 ###   存档数据自 QuAPI/test/quapi/archive_* 原样拷入；耗时较长）
@@ -89,11 +85,11 @@ include("quapi/archive_regression.jl")
 
 ### scheme 分派与基础设施（IFDiscretization 特有）
 
-@testset "统一入口：scheme 分派（rev 4 bath-first）" begin
+@testset "统一入口：scheme 分派（rev 4 bath-first；2026-11-25 轴面收敛）" begin
     β = 2.0
     fF = semicircular()
-    fB = bounded(ω -> exp(-(ω - 1.5)^2 / (2 * 0.4^2)) / sqrt(2π * 0.4^2), 0.5, 3.0)
     bF = fermionicbath(fF, β=β, μ=0.3)
+    fB = bounded(ω -> exp(-(ω - 1.5)^2 / (2 * 0.4^2)) / sqrt(2π * 0.4^2), 0.5, 3.0)
     bB = bosonicbath(fB, β=β, μ=0.2)
     bC = BCSBath(fF, β=β, μ=0.0, Δ=0.4)
     # 默认 scheme = QuAPI()
@@ -101,32 +97,22 @@ include("quapi/archive_regression.jl")
     @test IFD.Δt(bF, N=6, t=1.0) == IFD.Δt(bF, N=6, t=1.0, scheme=IFD.QuAPI())
     @test IFD.Δm(bC, Nτ=4, Nt=3, t=0.6).uu == IFD.Δm(bC, Nτ=4, Nt=3, t=0.6, scheme=IFD.QuAPI()).uu  # BCS 容器无 ==，比正常块
     # ExactEqualDistantKernel 默认构造器 = ExactEqualDistantKernel(EDToulouseSolver(64))
-    @test IFD.Δτ(bF, N=5, scheme=IFD.ExactEqualDistantKernel()) ==
-          IFD.Δτ(bF, N=5, scheme=IFD.ExactEqualDistantKernel(IFD.EDToulouseSolver(64)))
-    # 统计分派：同一 scheme 下三种 bath 各走各的 exact 实现（与直接调用逐位一致）
+    @test IFD.ExactEqualDistantKernel() == IFD.ExactEqualDistantKernel(IFD.EDToulouseSolver(64))
+    # 存活严格分派：费米实时（与 direct exact_fermionic_Δt 逐位一致——同一函数同一 gfsolver）
     e = IFD.ExactEqualDistantKernel(IFD.EDToulouseSolver(32))
-    @test IFD.Δτ(bB, N=5, scheme=e) ==
-          IFD.exact_bosonic_Δτ(fB, β=β, N=5, μ=0.2, gfsolver=IFD.EDToulouseSolver(32))
-    @test IFD.Δτ(bF, N=5, scheme=e) ==
-          IFD.exact_fermionic_Δτ(fF, β=β, N=5, μ=0.3, gfsolver=IFD.EDToulouseSolver(32))
-    xB = IFD.Δτ(bC, N=5, scheme=e)  # BCS 容器无 ==，逐块比（uu/dd 正常块 + ud/du 反常块）
-    yB = IFD.exact_bcs_Δτ(fF, β=β, N=5, μ=0.0, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))
-    @test xB.uu == yB.uu && xB.dd == yB.dd && xB.ud == yB.ud && xB.du == yB.du
-    xBt = IFD.Δt(bC, N=4, t=0.8, scheme=e)
-    yBt = IFD.exact_bcs_Δt(fF, β=β, N=4, t=0.8, μ=0.0, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))
-    @test xBt.uu == yBt.uu && xBt.dd == yBt.dd && xBt.ud == yBt.ud && xBt.du == yBt.du
-    xBm = IFD.Δm(bC, Nτ=3, t=0.6, Nt=3, scheme=e)
-    yBm = IFD.exact_bcs_Δm(fF, β=β, Nτ=3, t=0.6, Nt=3, μ=0.0, Δ=0.4,
-                           gfsolver=IFD.EDToulouseSolver(32))
-    @test xBm.uu == yBm.uu && xBm.dd == yBm.dd && xBm.ud == yBm.ud && xBm.du == yBm.du
-    @test IFD.Δt(bB, N=4, t=0.8, scheme=e) ==
-          IFD.exact_bosonic_Δt(fB, β=β, N=4, t=0.8, μ=0.2, gfsolver=IFD.EDToulouseSolver(32))
-    xM = IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)
-    yM = IFD.exact_fermionic_Δm(fF, β=β, Nτ=3, Nt=3, t=0.6, μ=0.3,
-                                gfsolver=IFD.EDToulouseSolver(32))
-    @test xM == yM[1]                            # 严格容器 == = 逐块相等
-    # 核技术与统计正交：QuAPI() 与 ExactEqualDistantKernel() 结果不同（同为 ImagCorrelationFunction）
-    @test IFD.Δτ(bF, N=5) != IFD.Δτ(bF, N=5, scheme=e)
+    xt = IFD.Δt(bF, N=4, t=0.8, scheme=e)
+    yt = IFD.exact_fermionic_Δt(fF, β=β, N=4, t=0.8, μ=0.3, gfsolver=IFD.EDToulouseSolver(32))
+    @test xt == yt[1]                            # 严格容器 == = 逐块相等
+    # 退役严格分派（2026-11-25 轴面收敛）：统一入口路由抛「未实现」；
+    # 恢复入口见 README todolist
+    @test_throws ErrorException IFD.Δτ(bF, N=5, scheme=e)   # exact_fermionic_Δτ
+    @test_throws ErrorException IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)  # exact_fermionic_Δm
+    @test_throws ErrorException IFD.Δτ(bC, N=5, scheme=e)   # exact_bcs_Δτ
+    @test_throws ErrorException IFD.Δt(bC, N=4, t=0.8, scheme=e)         # exact_bcs_Δt
+    @test_throws ErrorException IFD.Δm(bC, Nτ=3, t=0.6, Nt=3, scheme=e)  # exact_bcs_Δm
+    @test_throws ErrorException IFD.Δτ(bB, N=5, scheme=e)   # exact_bosonic_Δτ
+    @test_throws ErrorException IFD.Δt(bB, N=4, t=0.8, scheme=e)         # exact_bosonic_Δt
+    @test_throws ErrorException IFD.Δm(bB, Nτ=3, Nt=3, t=0.6, scheme=e)  # exact_bosonic_Δm
 end
 
 @testset "基础设施" begin

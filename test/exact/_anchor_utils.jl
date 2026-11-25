@@ -1,5 +1,5 @@
 # 测试本地锚：JW 多体生成元（← QuAPI/exactif/brute.jl 的 mb_generator 原样拷贝，
-# 出处注明；供 exact_bcs_check.jl 的 Fock ED 定义级锚定使用）
+# 出处注明；供 test/exact/fermionic_realtime.jl 的 Fock ED 定义级锚定使用）
 """
     mb_generator(h) -> 2ⁿ×2ⁿ
 

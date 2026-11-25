@@ -9,23 +9,17 @@ include("exact/exact.jl")
     Δτ(bath::AbstractFermionicNormalBath; N, δτ=bath.β/N, scheme=QuAPI())
 
 费米浴虚时 hybridization function。`scheme::DiscretizationScheme` 选核技术：
-`QuAPI()`（默认，一阶冻结核梯形装配）或 `ExactEqualDistantKernel(gfsolver)`（严格核，
-本征求解器 + GL-M 求积）。`QuAPI()` 返回 `ImagCorrelationFunction`；
-`ExactEqualDistantKernel()` 返回 `(ImagCorrelationFunction, normdelta)` 元组
-（装配级 Z 证书，见 exact_fermionic_Δτ）。β、μ 从 bath
-对象读取。
-
-注：`exact_fermionic_*`（ExactEqualDistantKernel 路线）接替 QuAPI 已删除的
-ExactGrassmannIF 路线——返回标准 `ImagCorrelationFunction`
-（旧版返回配对矩阵 + prefactor）。
+`QuAPI()`（默认，一阶冻结核梯形装配），返回 `ImagCorrelationFunction`；
+`ExactEqualDistantKernel`（虚轴严格核路由）**未实现**——`exact_fermionic_Δτ`
+已于 2026-11-25 退役（恢复入口见 README todolist）。β、μ 从 bath 对象读取。
 """
 Δτ(bath::AbstractFermionicNormalBath; N::Int, δτ::Real=bath.β/N,
    scheme::DiscretizationScheme=QuAPI()) = _fermions_Δτ(scheme, bath, N, δτ)
 
 _fermions_Δτ(::QuAPI, bath::AbstractFermionicNormalBath, N::Int, δτ::Real) =
     fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ)
-_fermions_Δτ(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N::Int, δτ::Real) =
-    exact_fermionic_Δτ(bath.spectrum, β=bath.β, N=N, μ=bath.μ, δτ=δτ; gfsolver=s.solver)
+_fermions_Δτ(::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N::Int, δτ::Real) =
+    error("未实现：虚轴严格核 exact_fermionic_Δτ 已退役（2026-11-25 轴面收敛；恢复入口见 README todolist）")
 
 """
     Δt(bath::AbstractFermionicNormalBath; N, t, scheme=QuAPI())
@@ -47,15 +41,15 @@ _fermions_Δt(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, N::
     Δm(bath::AbstractFermionicNormalBath; Nτ, t, Nt, δτ=bath.β/Nτ, scheme=QuAPI())
 
 费米浴混合（Kadanoff-Baym L 形）轮廓 hybridization function。
-scheme 语义同 `Δτ`。`QuAPI()` 返回 `MixedCorrelationFunction`；
-`ExactEqualDistantKernel()` 返回 `ExactMixedCorrelationFunction`（装配级严格
-核，腿基同冻结核；normdelta 经直接调用 `exact_fermionic_Δm` 获取）。
+`scheme::DiscretizationScheme` 选核技术：`QuAPI()`（默认），返回
+`MixedCorrelationFunction`；`ExactEqualDistantKernel`（混合轴严格核路由）
+**未实现**——`exact_fermionic_Δm` 已于 2026-11-25 退役（恢复入口见 README
+todolist）。
 """
 Δm(bath::AbstractFermionicNormalBath; Nτ::Int, t::Real, Nt::Int, δτ::Real=bath.β/Nτ,
    scheme::DiscretizationScheme=QuAPI()) = _fermions_Δm(scheme, bath, Nτ, t, Nt, δτ)
 
 _fermions_Δm(::QuAPI, bath::AbstractFermionicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
     fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ)
-_fermions_Δm(s::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
-    exact_fermionic_Δm(bath.spectrum, β=bath.β, μ=bath.μ, Nτ=Nτ, t=t, Nt=Nt, δτ=δτ;
-                       gfsolver=s.solver)[1]
+_fermions_Δm(::ExactEqualDistantKernel, bath::AbstractFermionicNormalBath, Nτ::Int, t::Real, Nt::Int, δτ::Real) =
+    error("未实现：混合轴严格核 exact_fermionic_Δm 已退役（2026-11-25 轴面收敛；恢复入口见 README todolist）")

@@ -6,7 +6,10 @@ module IFDiscretization
 # 「离散 IF 怎么算」。统计（玻色/费米/BCS）由 bath 对象类型承担（Δτ/Δt/Δm 的
 # 第一个输入必须是 bath），核技术由 scheme 关键字承担：
 #   Δτ(bath; N=…, scheme=QuAPI())                    # 一阶 Trotter 冻结核
-#   Δτ(bath; N=…, scheme=ExactEqualDistantKernel(EDToulouseSolver(64)))  # 严格核（ExactKernel 族，GL-M + 本征求解器）
+# 严格核（ExactKernel 族）分派面 = 实轴费米 Δt；虚轴/混合轴严格核与玻色/BCS
+# 严格核（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、exact_bcs_Δτ/Δt/Δm）
+# 已于 2026-11-25 退役——统一入口对其路由抛「未实现」，恢复入口见 README
+# todolist；实轴严格消费 = exact_fermionic_Δt 直连调用。
 #
 # 本包由 QuAPI 忠实移植而来（kernel 装配逐字未动）；接口调整见
 # plan/migration-plan.md。dense / deprecated / exactfermionic(ExactGrassmannIF)
@@ -31,16 +34,18 @@ export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 # exact_fermionic_Δt docstring：核内只含浴+耦合、无杂质信息；消费收缩 =
 # 同调度直接 Trotter 链的迹，任意 ε_d 机器精确）。带踢算符忠实核构造 =
 # 测试 helper（test/exact/_kicks_helper.jl），不在包内。
-export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δτ, exact_fermionic_Δt, exact_fermionic_Δm
-export exact_bosonic_Δτ, exact_bosonic_Δt, exact_bosonic_Δm
-export exact_bcs_Δτ, exact_bcs_Δt, exact_bcs_Δm
+# 2026-11-25 轴面收敛：仅存实轴费米 exact_fermionic_Δt；虚轴/混合轴与玻色/
+# BCS 严格核（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、
+# exact_bcs_Δτ/Δt/Δm）退役——scheme 类型层保留，统一入口路由抛「未实现」，
+# 恢复入口见 README todolist。
+export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δt
 
 # 离散方案与格林函数求解器
 export DiscretizationScheme, FrozenKernel, QuAPI
 export ToulouseSolver, EDToulouseSolver, AnaToulouseSolver
 
 # 严格核装配级载体（ExactKernel 族输出；配对 Δ + 腿基，branch 切片无损）
-export ExactRealCorrelationFunction, ExactMixedCorrelationFunction
+export ExactRealCorrelationFunction
 
 # numerical tolerance
 export get_quapi_tol, set_quapi_tol!

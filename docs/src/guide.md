@@ -49,24 +49,22 @@ Matsubara 频域数据可直变换到虚时网格：
 corr = Δiw_to_Δτ(Δiw; β = 2.0, N = 32)
 ```
 
-## 方案切换：冻结核 ⇄ 严格核
+## 方案切换：冻结核 ⇄ 严格核（实轴费米）
 
-`scheme` 关键字选择核技术；bath 统计决定走哪个实现（两层分派）：
+`scheme` 关键字选择核技术；bath 统计决定走哪个实现（两层分派）。
+**2026-11-25 轴面收敛**：严格核分派面 = 实轴费米 `Δt` 一条；其余轮廓/统计的
+Exact 路由抛「未实现」（恢复入口见包 README todolist）：
 
 ```julia
 using IFDiscretization
 
-corr = Δτ(bF; N = 32, scheme = QuAPI())     # 冻结核（默认）
+corr = Δτ(bF; N = 32, scheme = QuAPI())     # 冻结核（默认；现行统一入口唯一严格可用的对照面）
 e = ExactEqualDistantKernel()               # = ExactEqualDistantKernel(EDToulouseSolver(64))
 
-# 费米虚时：元组返回 (容器, normdelta)——装配级 Z 证书见 [ExactKernel Contract](@ref "ExactKernel Contract")
-k, normdelta = Δτ(bF; N = 32, scheme = e)
-
-# 费米实时/混合：统一入口只返回严格容器；normdelta 经直接调用获取
+# 费米实时：统一入口只返回严格容器；normdelta 经直接调用获取
 kc = Δt(bF; N = 16, t = 0.8, scheme = e)    # ExactRealCorrelationFunction（四块严格容器）
-km = Δm(bF; Nτ = 8, Nt = 8, t = 0.8, scheme = e)
 G₊₊ = branch(kc; b1 = :+, b2 = :+)          # 严格容器四块无损切片
-n = IFD.isize(km); m = IFD.rsize(km)        # 混合容器两段节点数（未导出，同 QuAPI 约定）
+k, normdelta = exact_fermionic_Δt(f; β = 2.0, N = 16, t = 0.8)   # 直连（元组返回）
 ```
 
 节点数（求积精度）由求解器携带：`ExactEqualDistantKernel(EDToulouseSolver(16))`
@@ -75,13 +73,11 @@ n = IFD.isize(km); m = IFD.rsize(km)        # 混合容器两段节点数（未�
 
 ## 直接调用严格核（绕过统一入口）
 
-需要 normdelta / kicks 门相位 / 逐 cell 调度时直接调用 `exact_*` 函数：
+需要 normdelta / kicks 门相位 / 逐 cell 调度时直接调用
+`exact_fermionic_Δt`：
 
 ```julia
-Δif, normdelta = exact_fermionic_Δτ(f; β = 2.0, N = 32, μ = 0.0,
-                                    gfsolver = EDToulouseSolver(64))
 Δrt, normdelta = exact_fermionic_Δt(f; β = 2.0, N = 16, t = 0.8)
-Δmx, normdelta = exact_fermionic_Δm(f; β = 2.0, Nτ = 8, t = 0.8, Nt = 8)
 ```
 
 纯浴对象（无杂质信息）：杂质 kick 相位经 `kicks` 接口析出，逐 cell 非均匀
@@ -92,18 +88,18 @@ kern, ndlt = IFD.exact_fermionic_Δt_cells(f; β = 2.0, cells = fill(0.05, 16),
                                           kicks = [exp(-im * g * ε_d) for g in gates])
 ```
 
-装配侧的 Z 证书（`Z = normdelta · det/Pf(装配矩阵)`）与门序列语义见
+装配侧的 Z 证书（`Z = normdelta · 轮廓收缩`）与门序列语义见
 [ExactKernel Contract](@ref "ExactKernel Contract")。
 
 ## BCS 超导 bath
 
 冻结核走 Bogoliubov 相干因子 `(u², uv, vu, v²)·f` 加权 + 色散
 ``\varepsilon \mapsto E(\varepsilon)=\sqrt{\varepsilon^2+|\Delta|^2}`` 复用
-费米核；严格核走 Nambu/BdG 对角化闭式（机器精度）：
+费米核（BCS 严格核 `exact_bcs_Δτ/Δt/Δm` 已于 2026-11-25 退役，恢复入口见
+包 README todolist）：
 
 ```julia
 corr = bcs_Δτ(f; β = 2.0, N = 32, Δ = 0.4, μ = 0.0)      # 冻结核（也可 Δτ(bC; ...)）
-ex = Δτ(bC; N = 32, scheme = ExactEqualDistantKernel())  # 严格核
 
 corr.uu    # 正常块 ā↑ Δ↑↑ a↑  (= cn)
 corr.ud    # 反常块 ā↑ Δ↑↓ ā↓  (= cc)
@@ -111,8 +107,7 @@ corr.du    # 反常块 a↓ Δ↓↑ a↑  (= nn)
 corr.dd    # 正常 ↓↓（洞侧 Nambu(2,2) partner，非 ā↓a↓ 配对块——见 conventions）
 ```
 
-块语义与 raw Nambu 收缩槽位见 [Contours and Containers](@ref "Contours and Containers")；
-严格核契约（闭式、Δ=0 退化、ED 金标准）见 [ExactKernel Contract](@ref "ExactKernel Contract")。
+块语义与 raw Nambu 收缩槽位见 [Contours and Containers](@ref "Contours and Containers")。
 
 ## GaussianStates 扩展
 

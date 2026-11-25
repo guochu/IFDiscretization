@@ -69,23 +69,14 @@ bcs_Δt
 bcs_Δm
 ```
 
-## 严格核（ExactKernel 族）
+## 严格核（ExactKernel 族；2026-11-25 轴面收敛后仅实轴费米）
 
-费米三轮廓为元组返回 `(容器, normdelta)`；玻色/BCS 为点值/严格容器
-（玻色未升级、BCS 无 normdelta——见 [ExactKernel Contract](@ref "ExactKernel Contract")）。
+虚轴/混合轴/玻色/BCS 严格核已退役（统一入口路由抛「未实现」；恢复入口见
+包 README todolist）——机器契约见 [ExactKernel Contract](@ref "ExactKernel Contract")。
 
 ```@docs
-exact_fermionic_Δτ
 exact_fermionic_Δt
-exact_fermionic_Δm
-exact_bosonic_Δτ
-exact_bosonic_Δt
-exact_bosonic_Δm
-exact_bcs_Δτ
-exact_bcs_Δt
-exact_bcs_Δm
 ExactRealCorrelationFunction
-ExactMixedCorrelationFunction
 IFDiscretization.isize
 IFDiscretization.rsize
 ```
@@ -100,20 +91,14 @@ gauss_legendre
 
 ## 内部入口（未导出）
 
-逐 cell 调度 + kicks 门相位、BCS Nambu 数据与稠密参照路径。使用时显式
-限定：
+逐 cell 调度 + kicks 门相位、实时稠密参照路径。使用时显式限定：
 
 ```julia
 using IFDiscretization
 IFDiscretization.exact_fermionic_Δt_cells(f; β, cells, kicks)   # 逐 cell + 门相位
-IFDiscretization.bcs_nambu_data(f, Δ; β, gfsolver)              # BdG 本征数据
 IFDiscretization._exrt_strict_kernel_dense(...)                 # 实时稠密参照（等价性受测）
-IFDiscretization._exrt_mixed_kernel_dense(...)                  # 混合稠密参照（等价性受测）
 ```
 
 ```@docs
 IFDiscretization.exact_fermionic_Δt_cells
-IFDiscretization.bcs_nambu_data
-IFDiscretization.bcs_Gtau
-IFDiscretization.bcs_Gtau_neg
 ```
