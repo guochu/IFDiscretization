@@ -9,10 +9,11 @@
 #               模型上，朴素 face-value 装配 ⇒ 一阶、K/IF 拆分（Weyl-K）⇒ 二阶
 #               （9 核全覆盖；目录结构镜像 performance/，求解器为快照拷贝）
 #               + 存档逐字节回归
-#   - exact/    严格核金标准（2026-11-25 轴面收敛后仅存实轴）：fermionic_realtime.jl
-#               ——包内 exact_fermionic_Δt（纯浴严格 IF 核）装配的无相互作用
-#               模型 1/2 阶 Trotter 演化 == 同阶直接 Trotter 演化（逐位/机器
-#               精度）。虚轴/混合轴与玻色/BCS 严格核退役（README todolist）；
+#   - exact/    严格核金标准（实轴）：fermionic_realtime.jl（FormB 契约
+#               装配 == 直接 Trotter 逐位）+ bcs_realtime.jl（FormB Nambu
+#               翻倍：Δ=0 逐位退化 + ν 二倍锚 + raw 参照自检；ED 端到端
+#               证书随 BCS 消费面立项——开口在测试头注声明，不静默）
+#               虚轴/混合轴与玻色/BCS 虚混轴严格核退役（README todolist）；
 #               退役路由的分派行为（抛「未实现」）由 scheme 分派 testset 钉住
 #   - osee.jl   GaussianStates 扩展的 corr→系数态 OSEE 测试（purify/解析锚；
 #               稠密张量锚段留在 QuAPI/test/osee.jl）。默认环境（@v1.10）
@@ -75,8 +76,11 @@ include("quapi/firstorder/runtests.jl")
 include("quapi/secondorder/runtests.jl")
 
 ### 严格核金标准：实轴费米（exact_fermionic_Δt 装配 == 同阶直接 Trotter，逐位）
+### + BCS 实时（exact_bcs_Δt FormB Nambu 翻倍：Δ=0 逐位退化 + ν 二倍锚 +
+###   raw 参照自检；ED 端到端证书随消费面立项）
 
 include("exact/fermionic_realtime.jl")
+include("exact/bcs_realtime.jl")
 
 ### 存档回归：一阶/二阶装配基准 vs 存档 CSV 逐字节（数值移植的最终防线；
 ###   存档数据自 QuAPI/test/quapi/archive_* 原样拷入；耗时较长）
@@ -103,12 +107,16 @@ include("quapi/archive_regression.jl")
     xt = IFD.Δt(bF, N=4, t=0.8, scheme=e)
     yt = IFD.exact_fermionic_Δt(fF, β=β, N=4, t=0.8, μ=0.3, gfsolver=IFD.EDToulouseSolver(32))
     @test xt == yt[1]                            # 严格容器 == = 逐块相等
+    # 存活严格分派：BCS 实时（2026-11-25 恢复，FormB Nambu 翻倍；金标准见 test/exact/bcs_realtime.jl）
+    bC = BCSBath(fF, β=β, μ=0.0, Δ=0.4)
+    xtc = IFD.Δt(bC, N=4, t=0.8, scheme=e)
+    ytc = IFD.exact_bcs_Δt(fF, β=β, N=4, t=0.8, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))
+    @test xtc.uu == ytc[1].uu && xtc.dd == ytc[1].dd && xtc.ud == ytc[1].ud && xtc.du == ytc[1].du
     # 退役严格分派（2026-11-25 轴面收敛）：统一入口路由抛「未实现」；
     # 恢复入口见 README todolist
     @test_throws ErrorException IFD.Δτ(bF, N=5, scheme=e)   # exact_fermionic_Δτ
     @test_throws ErrorException IFD.Δm(bF, Nτ=3, Nt=3, t=0.6, scheme=e)  # exact_fermionic_Δm
     @test_throws ErrorException IFD.Δτ(bC, N=5, scheme=e)   # exact_bcs_Δτ
-    @test_throws ErrorException IFD.Δt(bC, N=4, t=0.8, scheme=e)         # exact_bcs_Δt
     @test_throws ErrorException IFD.Δm(bC, Nτ=3, t=0.6, Nt=3, scheme=e)  # exact_bcs_Δm
     @test_throws ErrorException IFD.Δτ(bB, N=5, scheme=e)   # exact_bosonic_Δτ
     @test_throws ErrorException IFD.Δt(bB, N=4, t=0.8, scheme=e)         # exact_bosonic_Δt

@@ -95,8 +95,9 @@ kern, ndlt = IFD.exact_fermionic_Δt_cells(f; β = 2.0, cells = fill(0.05, 16),
 
 冻结核走 Bogoliubov 相干因子 `(u², uv, vu, v²)·f` 加权 + 色散
 ``\varepsilon \mapsto E(\varepsilon)=\sqrt{\varepsilon^2+|\Delta|^2}`` 复用
-费米核（BCS 严格核 `exact_bcs_Δτ/Δt/Δm` 已于 2026-11-25 退役，恢复入口见
-包 README todolist）：
+费米核（BCS 实时严格核 `exact_bcs_Δt` 已于 2026-11-25 以 FormB Nambu 翻倍
+恢复——`Δt(bath; scheme=ExactEqualDistantKernel(s))` 或直连；虚/混轴
+`exact_bcs_Δτ/Δm` 仍退役，恢复入口见包 README todolist）：
 
 ```julia
 corr = bcs_Δτ(f; β = 2.0, N = 32, Δ = 0.4, μ = 0.0)      # 冻结核（也可 Δτ(bC; ...)）

@@ -79,12 +79,20 @@ Exact 路由抛「未实现」（退役面与恢复入口见文末 todolist）�
 - 虚轴（`exact_fermionic_Δτ`）与混合轴（`exact_fermionic_Δm`）严格核已退役
   （2026-11-25 轴面收敛）——契约与金标准见文末 todolist。
 
-## BCS 严格核（已退役）
+## BCS 严格核（实时已恢复；虚/混轴退役）
 
-`exact_bcs_Δτ/Δt/Δm`（Nambu/BdG 对角化路线，2026-11-19 金标准完结）已于
-2026-11-25 轴面收敛整体退役——统一入口的 Exact 路由抛「未实现」；机器
-描述、槽位约定与金标准见文末 todolist 与 git 历史。BCS 的 QuAPI 冻结核
-路线（`bcs_Δτ/Δt/Δm` + `Δτ/Δt/Δm(bath; scheme=QuAPI())`）**不受影响**。
+`exact_bcs_Δt`（FormB Nambu 翻倍，2026-11-25 同日恢复）——单粒子
+`𝓗 = [[h₊, B],[B†, −h₊ᵀ]]`（杂质槽不配对）、接口槽每支点 4 个
+（ā↑, a↑, a↓, ā↓）、测度两扇区同 −1、热边 `e^{−β·𝓗_B}`；读出四 Nambu 块
+（(out,in) 型 partner 交叉、dd 直读）；normdelta = ν_BCS·Pf(G)，
+ν_BCS = det(I+𝔅ℛ𝔅†)/det(I+ℛ)。FormB 原语与费米严格核共享
+（`src/exact/formb.jl`）。锚定面见 `test/exact/bcs_realtime.jl`；
+⚠️ 两开口（不静默）：①一般离散谱热边需换 BCS 玻尔兹曼核 Gaussian
+（镜像简并谱已逐位锚定，uu 全谱逐位锚定）；②ED 端到端证书（Z≡1 + n̄）
+随 GTEMPO exact-BCS 消费面立项。`exact_bcs_Δτ/Δm` 仍退役（2026-11-25 轴面
+收敛）——统一入口的 Exact 路由抛「未实现」，机器描述见文末 todolist 与
+git 历史。BCS 的 QuAPI 冻结核路线（`bcs_Δτ/Δt/Δm` +
+`Δτ/Δt/Δm(bath; scheme=QuAPI())`）**不受影响**。
 
 ## GaussianStates 扩展（ext/）
 
@@ -154,8 +162,14 @@ scheme 类型层（`ExactKernel`/`ExactEqualDistantKernel`）保留为恢复挂�
 - [ ] **BCS 严格核族 `exact_bcs_Δτ/Δt/Δm`**（Nambu/BdG 对角化三轮廓时间域闭式，
       机器精度；槽位约定 = raw 收缩 ⟨T_C Φ_p(b1,i)Φ_q†(b2,j)⟩；16 维 Fock ED
       定义级金标准 = test/exact/bcs_{imagtime,realtime,mixedtime}.jl @ git
-      历史；normdelta/kicks 接口留白待立项）。恢复前置 = normdelta 闭式 +
-      BCS 严格消费面立项。
+      历史；normdelta/kicks 接口留白待立项）。**实时轴 Δt 已于 2026-11-25 以
+      FormB Nambu 翻倍恢复**（计划 = plan/bcs-realtime-exact-kernel-plan.md；
+      raw 闭式降为测试参照 helper `_bcs_raw_reference.jl`，16 维 ED 工厂
+      `_bcs_ed_utils.jl` 逐字恢复）。**开口**：①一般离散谱热边需换 BCS
+      玻尔兹曼核 Gaussian（当前 e^{−β𝓗_B} 携 Nambu 雅可比；镜像简并谱已
+      逐位锚定）；②ED 端到端证书（Z≡1 + n̄ 对拍 + ud/du 取向数值终裁）=
+      BCS 严格消费面立项的组成部分（消费契约与证书互依赖——两前置实为
+      一体）。Δτ/Δm 仍退役，恢复前置不变（虚轴消费机器立项）。
 
 **其余已知状态**
 

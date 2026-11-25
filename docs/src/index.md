@@ -17,7 +17,7 @@ Schur 构造）。本包由 QuAPI 忠实移植而来，与上游共享约定。
   节点序、`branch` 分支块约定、点值容器与严格容器的槽位语义（含 BCS
   Nambu 块的有向 Wick 形式）。
 - **[ExactKernel Contract](exact.md)**：严格核的严格性机制与装配级契约——
-  费米实轴 FormB 消元（2026-11-25 轴面收敛后唯一严格面）、Z 证书
+  费米实轴 FormB 消元 + BCS 实时 FormB Nambu 翻倍（2026-11-25）、Z 证书
   （normdelta 定义）、金标准测试清单；退役族恢复入口见包 README todolist。
 
 ## 全局符号约定

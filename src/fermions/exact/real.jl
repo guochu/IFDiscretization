@@ -2,118 +2,13 @@
 # exact/real.jl —— exact_fermionic_Δt：实时 Keldysh 严格 IF 核（FormB 消元）
 # 契约与构造见 exact_fermionic_Δt docstring；带踢算符忠实核不在本文件
 #（其构造保存于 test/exact/_kicks_helper.jl，金标准测试专用）。
+# FormB 消元原语（_formb_put!/_formb_qadd!/_formb_pfaffian/_quad_nodes）住
+# src/exact/formb.jl（2026-11-25 抽出，与 BCS 翻倍核共享）。
 # =============================================================================
-# ------------------------------ 实时 ------------------------------ #
+# ------------------------------ 实时 ------------------------------
 
 "腿位（节点 j0 = 0..N；+ 支在前，支内 (a, ā) 相邻），1-based"
 _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā ? 2 : 1)
-
-# ---------------- FormB（形态 B）消元原语（无 kick 严格核；← GTEMPO
-# extensions/exactif compact_delta 的 GM 换代移植，2026-11-22 契约换代） ----------------
-
-"反对称占位（1-based）：上三角 += v、下三角 −= v（i≠j）。"
-_formb_put!(A::Matrix{ComplexF64}, i::Int, j::Int, value) = begin
-    i == j && return A
-    if i < j
-        A[i, j] += value
-        A[j, i] -= value
-    else
-        A[j, i] -= value
-        A[i, j] += value
-    end
-    A
-end
-
-"接口槽（c = 1..N × 支 × (bar, eta)，G 矩阵 1-based 局部索引）。"
-_formb_ifslot(c::Int, br::Symbol, stat::Symbol) =
-    4 * (c - 1) + (br === :+ ? 1 : 3) + (stat === :bar ? 0 : 1)
-
-_formb_partner(c::Int, br::Symbol, stat::Symbol) =
-    _formb_ifslot(c, br, stat === :bar ? :eta : :bar)
-
-"""Q kernel 缝合：把 (bar_imp, eta_imp) IF 对与 bath 输出 bars/输入 etas 经 U
-缝合（反对称占位）；trace_bra 翻转输出行（⟨−ψ̄| 迹端约定）。"""
-function _formb_qadd!(A::Matrix{ComplexF64}, bar_imp::Int, eta_imp::Int,
-                      bath_bars::Vector{Int}, bath_etas::Vector{Int}, U::AbstractMatrix;
-                      trace_bra::Bool=false)
-    m = length(bath_bars)
-    size(U) == (m + 1, m + 1) || throw(DimensionMismatch("Q 传播子维度不匹配"))
-    _formb_put!(A, bar_imp, eta_imp, U[1, 1])
-    for j in eachindex(bath_etas)
-        _formb_put!(A, bar_imp, bath_etas[j], U[1, j + 1])
-    end
-    for i in eachindex(bath_bars)
-        value = U[i + 1, 1]
-        trace_bra && (value = -value)
-        _formb_put!(A, bath_bars[i], eta_imp, value)
-        for j in eachindex(bath_etas)
-            bath_value = U[i + 1, j + 1]
-            trace_bra && (bath_value = -bath_value)
-            _formb_put!(A, bath_bars[i], bath_etas[j], bath_value)
-        end
-    end
-    return A
-end
-
-"数值 Pfaffian（Parlett–Reid，O(n³)）。"
-function _formb_pfaffian(A0::Matrix{ComplexF64})
-    n = size(A0, 1)
-    (n % 2 == 0) || return zero(ComplexF64)
-    A = copy(A0)
-    pf = one(ComplexF64)
-    for k in 1:2:n
-        kp = k + 1
-        kp > n && break
-        if abs(A[kp, k]) < 1e-14
-            r = 0
-            for i in (kp + 1):n
-                abs(A[i, k]) > 1e-14 && (r = i; break)
-            end
-            r == 0 && return zero(ComplexF64)
-            A[[kp, r], :] = A[[r, kp], :]
-            A[:, [kp, r]] = A[:, [r, kp]]
-        end
-        piv = A[kp, k]
-        for i in (kp + 1):n
-            c = A[i, k] / piv
-            c == 0 && continue
-            for j in (kp + 1):n
-                A[i, j] -= c * A[kp, j]
-                A[j, i] -= c * A[j, kp]
-            end
-        end
-        pf *= piv
-    end
-    return pf
-end
-
-# ------------------------------ 谱离散（原 eigensolve.jl；GL-M 求积节点，
-# 浴 h₀ 按需内联构造；← QuAPI/exactif/test/exactif_api.jl 原样移植） -------
-
-"GL-M 求积节点上的谱数据（求积节点，非物理模式）。μ = 谱平移。"
-function _quad_nodes(f::AbstractBoundedFunction, μ::Real, M::Int)
-    lb, ub = lowerbound(f), upperbound(f)
-    xs, ws = gauss_legendre(M)
-    half = (ub - lb) / 2
-    Es = [(lb + ub) / 2 + half * x - μ for x in xs]
-    wΓ = [half * w * f((lb + ub) / 2 + half * x) for (x, w) in zip(xs, ws)]
-    Vsq = sqrt.(max.(wΓ, 0.0))
-    return Es, Vsq, wΓ
-end
-
-# 离散谱 = 物理模式直取（严格核的浴侧是二次型——离散浴下核天然精确，无求积
-# 误差；模式数 = 谱线数，gfsolver 的 nbath 不消费，EDToulouseSolver docstring
-# 「离散谱 = 谱线数目」的实装。此前缺失：DiracDelta 走 GL 路径在 f(ϵ) 求值处
-# 抛「can not call to a delta function」、DiscreteSpectrum 的 ±Inf 撑界静默产
-# 出 Inf/NaN——两者都不该被静默拒收/污染，2026-11-21 补齐）。
-# 死模过滤契约沿用：wΓ ≤ 0 的线剔除（α = 0 线 = 死模，K ≥ 1 守卫不变）。
-_quad_nodes(f::DiracDelta, μ::Real, ::Int) =
-    ([f.ω - μ], [sqrt(max(f.α, 0.0))], [Float64(f.α)])
-
-_quad_nodes(f::DiscreteSpectrum, μ::Real, ::Int) =
-    (collect(Float64.(frequencies(f))) .- μ,
-     sqrt.(max.(spectrumvalues(f), 0.0)),
-     collect(Float64.(spectrumvalues(f))))
 
 """
     exact_fermionic_Δt(f; β, N, t, μ=0, gfsolver=EDToulouseSolver(64))

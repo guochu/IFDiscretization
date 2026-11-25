@@ -6,10 +6,11 @@ module IFDiscretization
 # 「离散 IF 怎么算」。统计（玻色/费米/BCS）由 bath 对象类型承担（Δτ/Δt/Δm 的
 # 第一个输入必须是 bath），核技术由 scheme 关键字承担：
 #   Δτ(bath; N=…, scheme=QuAPI())                    # 一阶 Trotter 冻结核
-# 严格核（ExactKernel 族）分派面 = 实轴费米 Δt；虚轴/混合轴严格核与玻色/BCS
-# 严格核（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、exact_bcs_Δτ/Δt/Δm）
-# 已于 2026-11-25 退役——统一入口对其路由抛「未实现」，恢复入口见 README
-# todolist；实轴严格消费 = exact_fermionic_Δt 直连调用。
+# 严格核（ExactKernel 族）分派面 = 实轴（费米 Δt + BCS Δt）；虚轴/混合轴
+# 严格核与玻色严格核（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、
+# exact_bcs_Δτ/Δm）已于 2026-11-25 退役——统一入口对其路由抛「未实现」，
+# 恢复入口见 README todolist；实轴严格消费 = exact_fermionic_Δt /
+# exact_bcs_Δt 直连调用。
 #
 # 本包由 QuAPI 忠实移植而来（kernel 装配逐字未动）；接口调整见
 # plan/migration-plan.md。dense / deprecated / exactfermionic(ExactGrassmannIF)
@@ -33,12 +34,13 @@ export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 # 严格核（exact API）= **纯耦合项严格核**族（统一契约见 real.jl
 # exact_fermionic_Δt docstring：核内只含浴+耦合、无杂质信息；消费收缩 =
 # 同调度直接 Trotter 链的迹，任意 ε_d 机器精确）。带踢算符忠实核构造 =
-# 测试 helper（test/exact/_kicks_helper.jl），不在包内。
-# 2026-11-25 轴面收敛：仅存实轴费米 exact_fermionic_Δt；虚轴/混合轴与玻色/
-# BCS 严格核（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、
-# exact_bcs_Δτ/Δt/Δm）退役——scheme 类型层保留，统一入口路由抛「未实现」，
-# 恢复入口见 README todolist。
-export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δt
+# 测试 helper（test/exact/_kicks_helper.jl、_bcs_kicks_helper.jl），不在包内。
+# 2026-11-25 轴面收敛：仅存实轴——费米 exact_fermionic_Δt + BCS
+# exact_bcs_Δt（同日 FormB Nambu 翻倍恢复）；虚轴/混合轴与玻色严格核
+#（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、exact_bcs_Δτ/Δm）
+# 退役——scheme 类型层保留，统一入口路由抛「未实现」，恢复入口见
+# README todolist。
+export ExactKernel, ExactEqualDistantKernel, exact_fermionic_Δt, exact_bcs_Δt
 
 # 离散方案与格林函数求解器
 export DiscretizationScheme, FrozenKernel, QuAPI
@@ -67,6 +69,7 @@ include("schemes.jl")
 include("corrstorages/corrstorages.jl")
 include("contourindex.jl")
 include("exactcorrstorages/exactcorrstorages.jl")
+include("exact/formb.jl")       # FormB 消元原语（费米/BCS 实轴严格核共享，内部符号）
 
 # 三统计 × {quapi 冻结核, exact 严格核} + 统一入口（bath-first 分派，见各 *.jl）
 include("bosons/bosons.jl")

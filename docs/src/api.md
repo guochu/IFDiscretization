@@ -69,13 +69,14 @@ bcs_Δt
 bcs_Δm
 ```
 
-## 严格核（ExactKernel 族；2026-11-25 轴面收敛后仅实轴费米）
+## 严格核（ExactKernel 族；实轴：费米 Δt + BCS Δt）
 
-虚轴/混合轴/玻色/BCS 严格核已退役（统一入口路由抛「未实现」；恢复入口见
-包 README todolist）——机器契约见 [ExactKernel Contract](@ref "ExactKernel Contract")。
+虚轴/混合轴/玻色严格核与 BCS 虚/混轴严格核已退役（统一入口路由抛「未实现」；
+恢复入口见包 README todolist）——机器契约见 [ExactKernel Contract](@ref "ExactKernel Contract")。
 
 ```@docs
 exact_fermionic_Δt
+exact_bcs_Δt
 ExactRealCorrelationFunction
 IFDiscretization.isize
 IFDiscretization.rsize
