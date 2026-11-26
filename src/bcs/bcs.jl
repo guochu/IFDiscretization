@@ -1,6 +1,6 @@
 # bcs —— BCS 统一入口：Δτ/Δt/Δm（bath-first 两层分派，见包 README/plan）
 include("quapi/quapi.jl")
-include("exact/exact.jl")       # 实轴严格核 exact_bcs_Δt（2026-11-25 退役后单轴恢复）
+include("exact/exact.jl")       # 实轴严格核 exact_bcs_Δt（粒子字典 FormB 链）
 
 # ---------------- 统一入口：第一层分派 = bath 类型（统计），
 #                  第二层分派 = scheme（核技术） ----------------
@@ -28,7 +28,7 @@ _bcs_Δτ_dispatch(::ExactEqualDistantKernel, bath::AbstractBCSBath, N::Int, δ�
 BCS 浴实时（闭 Keldysh 轮廓）hybridization function，δt = t/N。
 `QuAPI()`（默认，Bogoliubov 系数 + fermionic_Δt 冻结核）返回
 `BCSCorrelationFunction`；`ExactEqualDistantKernel` 走严格核
-`exact_bcs_Δt`（2026-11-25 退役后单轴恢复，FormB Nambu 翻倍），
+`exact_bcs_Δt`（粒子字典 FormB 链，消费契约 = 冻结核字面放置语义），
 返回 `BCSCorrelationFunction{ExactRealCorrelationFunction}`
 （normdelta 经直接调用 `exact_bcs_Δt` 获取）。
 """

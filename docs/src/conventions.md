@@ -1,7 +1,7 @@
 # Contours and Containers
 
 本页汇总包内全部存储约定：三种时间轮廓的几何与节点序、Toeplitz 向量读法、
-`branch` 分支块访问、点值容器与严格容器的槽位语义，以及 BCS Nambu 块的
+`branch` 分支块访问、点值容器与严格容器的槽位语义，以及 BCS 四块的
 有向 Wick 形式。
 
 ## 三种时间轮廓
@@ -100,7 +100,7 @@ BCS（超导）浴的 IF 指数是**有向 Wick 形式**（注意 ↓↓ 正常�
 - **Δ = 0 退化**：`uu` 退化为单味费米 GF；`dd` 非对角 = ``-uu^{\mathsf T}``
   （对角差正则反对易接触）；`ud/du` 归零。下游单味装配应使用 `uu`
   （`corr.dd` **不**退化为单味结果——它是洞侧 partner）。
-- 严格 BCS 核存 **raw Nambu 收缩**（无提取符号）：
+- 退役版严格 BCS 核曾存 **raw Nambu 收缩**（无提取符号）：
 
 ```math
 \mathsf{G}^{(p,q)}[b_1,b_2][i,j] =
@@ -110,7 +110,15 @@ BCS（超导）浴的 IF 指数是**有向 Wick 形式**（注意 ↓↓ 正常�
 
   row = ``\Phi_p`` 侧时间/支、col = ``\Phi_q^\dagger`` 侧；等时点走
   greater/``0^+`` 侧。四块语义：`(1,1)=uu`、`(2,2)=dd`、`(1,2)=ud`、
-  `(2,1)=du`。逐位锚定见 `test/exact/bcs_*`（Fock ED 金标准）。
+  `(2,1)=du`。该 raw 收缩自 2026-11-25 起只作测试参照
+  （`test/exact/_bcs_raw_reference.jl`，== Fock ED）。
+- 现行严格 BCS 核 `exact_bcs_Δt`（粒子字典 FormB 链，2026-11-26 换代）沿用
+  `BCSCorrelationFunction` 四字段，**消费语义与上式冻结核指数的字面放置完全一致**
+  （= GTEMPO AnomalousPairing 四键消费：两味皆物理粒子；`ud` = (ā↑,ā↓) 反常
+  对产生、`du` = (a↓,a↑) 反常对湮灭；`dd` = ā↓Δ↓↓a↓ 系数——Δ=0 时与 `uu` 同
+  退化为单味费米核，**不是**冻结核 `dd` 的「洞侧 partner」语义）。契约与 ED
+  端到端证书见 [ExactKernel Contract](@ref "ExactKernel Contract")。
+  （2026-11-25 的 Nambu 翻倍前身只可按空穴字典消费，已退役 @ git 82a2368。）
 
 ## 方案层级与输出对照
 
@@ -125,12 +133,12 @@ DiscretizationScheme
             └── AnaToulouseSolver()        # 解析路线（扩展位，未实装）
 ```
 
-| 轮廓 | 冻结核（`QuAPI()`） | 严格核（费米实轴；2026-11-25 轴面收敛后唯一严格分派面） |
+| 轮廓 | 冻结核（`QuAPI()`） | 严格核（实轴：费米 + BCS；2026-11-25 轴面收敛后唯一严格分派面） |
 |---|---|---|
 | `Δτ` | 点值容器 | 退役 |
-| `Δt` | 点值容器 | 费米 `ExactRealCorrelationFunction`（统一入口只返回容器；normdelta 经直连 `exact_fermionic_Δt` 获取） |
+| `Δt` | 点值容器 | 费米 `ExactRealCorrelationFunction`、BCS `BCSCorrelationFunction{ExactRealCorrelationFunction}`（统一入口只返回容器；normdelta 经直连 `exact_fermionic_Δt` / `exact_bcs_Δt` 获取） |
 | `Δm` | 点值容器 | 退役 |
 
-费米实轴严格核的装配级 Z 证书（`normdelta`）见
-[ExactKernel Contract](@ref "ExactKernel Contract")；虚轴/混合轴/玻色/BCS 严格核
-已退役（统一入口路由抛「未实现」，恢复入口见包 README todolist）。
+费米/BCS 实轴严格核的装配级 Z 证书（`normdelta`）见
+[ExactKernel Contract](@ref "ExactKernel Contract")；虚轴/混合轴/玻色/BCS 虚混轴
+严格核已退役（统一入口路由抛「未实现」，恢复入口见包 README todolist）。

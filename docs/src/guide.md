@@ -52,8 +52,9 @@ corr = Δiw_to_Δτ(Δiw; β = 2.0, N = 32)
 ## 方案切换：冻结核 ⇄ 严格核（实轴费米）
 
 `scheme` 关键字选择核技术；bath 统计决定走哪个实现（两层分派）。
-**2026-11-25 轴面收敛**：严格核分派面 = 实轴费米 `Δt` 一条；其余轮廓/统计的
-Exact 路由抛「未实现」（恢复入口见包 README todolist）：
+**2026-11-25 轴面收敛**：严格核分派面 = 实轴 `Δt`（费米 + BCS；BCS 2026-11-26
+换代为粒子字典 FormB 链）；其余轮廓/统计的 Exact 路由抛「未实现」（恢复入口见
+包 README todolist）：
 
 ```julia
 using IFDiscretization
@@ -95,8 +96,8 @@ kern, ndlt = IFD.exact_fermionic_Δt_cells(f; β = 2.0, cells = fill(0.05, 16),
 
 冻结核走 Bogoliubov 相干因子 `(u², uv, vu, v²)·f` 加权 + 色散
 ``\varepsilon \mapsto E(\varepsilon)=\sqrt{\varepsilon^2+|\Delta|^2}`` 复用
-费米核（BCS 实时严格核 `exact_bcs_Δt` 已于 2026-11-25 以 FormB Nambu 翻倍
-恢复——`Δt(bath; scheme=ExactEqualDistantKernel(s))` 或直连；虚/混轴
+费米核（BCS 实时严格核 `exact_bcs_Δt` = 粒子字典 FormB 链，2026-11-26 换代——
+`Δt(bath; scheme=ExactEqualDistantKernel(s))` 或直连；虚/混轴
 `exact_bcs_Δτ/Δm` 仍退役，恢复入口见包 README todolist）：
 
 ```julia
@@ -110,6 +111,21 @@ corr.dd    # 正常 ↓↓（洞侧 Nambu(2,2) partner，非 ā↓a↓ 配对块
 
 块语义与 raw Nambu 收缩槽位见 [Contours and Containers](@ref "Contours and Containers")。
 
+BCS 实时严格核与费米严格核同一用法（统一入口只返回容器，normdelta 经直连获取）：
+
+```julia
+k, normdelta = exact_bcs_Δt(f; β = 2.0, N = 16, t = 0.8, Δ = 0.4)   # 直连（元组返回）
+kc = Δt(bC; N = 16, t = 0.8, scheme = e)                             # BCSCorrelationFunction{ExactRealCorrelationFunction}
+```
+
+!!! note "严格核 `exact_bcs_Δt` 的消费契约 = 冻结核字面放置语义"
+    严格 BCS 核返回同一容器类型 `BCSCorrelationFunction`，四块的**消费语义与冻结核
+    完全一致**（= GTEMPO AnomalousPairing 四键消费）：两味皆物理粒子（ρ₀ 真空），
+    `uu`→(ā↑,a↑)、`dd`→(ā↓,a↓)、`ud`→(ā↑,ā↓) 反常对产生、`du`→(a↓,a↑) 反常对湮灭。
+    下游与冻结核走同一 PartialIF 装配路径。契约、ED 端到端证书与消费参考实现见
+    [ExactKernel Contract](@ref "ExactKernel Contract")。（2026-11-25 的 Nambu
+    翻倍前身只可按空穴字典消费，已退役 @ git 82a2368。）
+
 ## GaussianStates 扩展
 
 弱依赖 `GaussianStates` 激活：`FermionicGaussianState(corr)` /
@@ -119,7 +135,7 @@ corr.dd    # 正常 ↓↓（洞侧 Nambu(2,2) partner，非 ā↓a↓ 配对块
 
 ## 注意事项
 
-1. **BCS 只支持 μ = 0**：严格核对 μ ≠ 0 抛 `ArgumentError`（Nambu 约定）。
+1. **BCS 只支持 μ = 0**：严格核对 μ ≠ 0 抛 `ArgumentError`（现行契约）。
 2. **玻色零频奇异性**：μ = 0 且谱支撑触及 ε = 0 时玻色求积抛 `DomainError`。
 3. **对角元读法**：[`CorrelationMatrix`](@ref) 对角 = 两排序之和
    `ηⱼₖ[1] + ηₖⱼ[1]`；冻结核把接触约定在 `ηⱼₖ[1]`（`ηₖⱼ[1] = 0`）。

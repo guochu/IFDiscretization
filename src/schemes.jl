@@ -9,8 +9,8 @@
 #               ├── EDToulouseSolver(nbath)   # 本征路线（现行）
 #               └── AnaToulouseSolver()       # 解析路线（扩展位）
 #
-# 分派面（2026-11-25 轴面收敛 + 同日 BCS 实时恢复）：严格核 = 实轴费米
-# `exact_fermionic_Δt` + 实轴 BCS `exact_bcs_Δt`（FormB Nambu 翻倍）；
+# 分派面（2026-11-25 轴面收敛 + BCS 实时严格核）：严格核 = 实轴费米
+# `exact_fermionic_Δt` + 实轴 BCS `exact_bcs_Δt`（粒子字典 FormB 链）；
 # 虚轴/混合轴核（`exact_fermionic_Δτ/Δm`）与玻色严格核
 # （`exact_bosonic_Δτ/Δt/Δm`）、BCS 虚/混轴（`exact_bcs_Δτ/Δm`）已退役——
 # 统一入口对其 scheme 路由抛「未实现」错误（类型层保留为将来恢复/扩展的

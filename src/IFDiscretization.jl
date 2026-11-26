@@ -36,7 +36,8 @@ export AbstractContourIndex, GrassmannContourIndex, BosonicContourIndex
 # 同调度直接 Trotter 链的迹，任意 ε_d 机器精确）。带踢算符忠实核构造 =
 # 测试 helper（test/exact/_kicks_helper.jl、_bcs_kicks_helper.jl），不在包内。
 # 2026-11-25 轴面收敛：仅存实轴——费米 exact_fermionic_Δt + BCS
-# exact_bcs_Δt（同日 FormB Nambu 翻倍恢复）；虚轴/混合轴与玻色严格核
+# exact_bcs_Δt（粒子字典 FormB 链，消费契约 = 冻结核字面放置语义）；
+# 虚轴/混合轴与玻色严格核
 #（exact_fermionic_Δτ/Δm、exact_bosonic_Δτ/Δt/Δm、exact_bcs_Δτ/Δm）
 # 退役——scheme 类型层保留，统一入口路由抛「未实现」，恢复入口见
 # README todolist。

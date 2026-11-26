@@ -30,6 +30,7 @@
 include(joinpath(@__DIR__, "_anchor_utils.jl"))
 include(joinpath(@__DIR__, "_kicks_helper.jl"))
 include(joinpath(@__DIR__, "_formb_fixture.jl"))
+include(joinpath(@__DIR__, "_fermion_ed_chain.jl"))
 
 # ---------------- 调度表：补零 pair 网格（NativeExact trotter_factors 同款） ----------------
 
@@ -232,6 +233,30 @@ const εd = 0.3
             println("  order=$order: n̄ 误差 = $(round.(err, sigdigits=3))  斜率 = $(round.(s, digits=2))")
             @test all(slope_lo .< s .< slope_hi)
             @test err[end] < err[1]
+        end
+    end
+
+    # ---- uniform API 的消费端到端（2026-11-25）：世界线收缩 == Fock ED 门序列链 ----
+    # GTEMPO 严格核消费语义（门 + 反测度 + 折返 + ρ₀）的紧凑翻译 = test/exact/_worldline.jl
+    # `fermi_worldline`（逐因子经 GTEMPO 本体 oracle dump 标定）；参照 = native 调度
+    # （先门后 cell；order 2 = Strang）的 Fock 门序列链 `_fermion_ed_chain.jl`。
+    # 覆盖 uniform 核本身（此前只有 fixture 冻结常数锚）：非对称谱 × orders 1/2 ×
+    # N 1..3 × ε_d × 真空/占据初态。
+    @testset "uniform API 消费证书：世界线收缩 == ED 门序列链（Z≡1 + n̄；真空/占据）" begin
+        fd0 = DiracDelta(ω=0.8, α=0.4)                         # 非对称单模
+        fdisc = DiscreteSpectrum([-0.7, 1.3], [0.2025, 0.36])   # 非对称双线
+        fasym = bounded(ω -> 1.0 + 0.5 * ω, -1.0, 1.0)          # 非对称 GL-2
+        for (f, M) in ((fd0, 1), (fdisc, 2), (fasym, 2), (f16, 3)), order in (1, 2),
+            N in (1, 2, 3), εdv in (0.3, -0.5, 0.0), occ in (false, true)
+            cells, links = ed_native_schedule(order, N, t_T / N)
+            kernel, ndlt = exact_fermionic_Δt(f; β=β, N=N, t=t_T, μ=0,
+                                              gfsolver=IFD.EDToulouseSolver(M))
+            Z, nif = fermi_worldline(kernel, ndlt, N, links, εdv; occupied=occ)
+            Zed, ned = fermion_ed_chain(f, M, cells, links, β, εdv;
+                                        ρ0v=(occ ? ComplexF64[0 0; 0 1] : ComplexF64[1 0; 0 0]))
+            @test abs(Zed - 1) < 1e-12                        # 参照侧自检（幺正）
+            @test abs(Z - 1) < 1e-12
+            @test abs(nif - ned) < 1e-11
         end
     end
 

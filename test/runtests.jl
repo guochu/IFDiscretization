@@ -10,9 +10,10 @@
 #               （9 核全覆盖；目录结构镜像 performance/，求解器为快照拷贝）
 #               + 存档逐字节回归
 #   - exact/    严格核金标准（实轴）：fermionic_realtime.jl（FormB 契约
-#               装配 == 直接 Trotter 逐位）+ bcs_realtime.jl（FormB Nambu
-#               翻倍：Δ=0 逐位退化 + ν 二倍锚 + raw 参照自检；ED 端到端
-#               证书随 BCS 消费面立项——开口在测试头注声明，不静默）
+#               装配 == 直接 Trotter 逐位 + uniform 核世界线消费证书）+
+#               bcs_realtime.jl（粒子字典 FormB 链：冻结核字面放置语义的 ED
+#               端到端证书 + 闭式/结构化 ↔ 独立 Fock 稠密参照 + Δ=0 退化 +
+#               ν 锚 + raw 参照自检 + Pfaffian 回归）
 #               虚轴/混合轴与玻色/BCS 虚混轴严格核退役（README todolist）；
 #               退役路由的分派行为（抛「未实现」）由 scheme 分派 testset 钉住
 #   - osee.jl   GaussianStates 扩展的 corr→系数态 OSEE 测试（purify/解析锚；
@@ -75,10 +76,18 @@ include("quapi/assert_order.jl")
 include("quapi/firstorder/runtests.jl")
 include("quapi/secondorder/runtests.jl")
 
-### 严格核金标准：实轴费米（exact_fermionic_Δt 装配 == 同阶直接 Trotter，逐位）
-### + BCS 实时（exact_bcs_Δt FormB Nambu 翻倍：Δ=0 逐位退化 + ν 二倍锚 +
-###   raw 参照自检；ED 端到端证书随消费面立项）
+### 严格核金标准：实轴费米（exact_fermionic_Δt 装配 == 同阶直接 Trotter，逐位
+###   + uniform 核世界线消费证书 == Fock ED 门序列链）
+###   + BCS 实时（exact_bcs_Δt 粒子字典 FormB 链：冻结核字面放置语义的 ED 端到端
+###     证书 + 闭式 cell/热边 == Fock 提取 + 结构化 Schur == 独立 Fock 稠密参照 +
+###     Δ=0 退化 + ν 锚 + raw 参照自检 + Pfaffian 回归）
+### 共用证书机器：_worldline.jl（GTEMPO 严格核消费语义的世界线求值器）+
+###   _bcs_ed_chain.jl（多模 Fock ED 门序列链 + native 调度表）+
+###   _bcs_physical_ref.jl（粒子字典 BCS 严格核的独立 Fock 稠密参照）
 
+include("exact/_worldline.jl")
+include("exact/_bcs_ed_chain.jl")
+include("exact/_bcs_physical_ref.jl")
 include("exact/fermionic_realtime.jl")
 include("exact/bcs_realtime.jl")
 
@@ -107,7 +116,7 @@ include("quapi/archive_regression.jl")
     xt = IFD.Δt(bF, N=4, t=0.8, scheme=e)
     yt = IFD.exact_fermionic_Δt(fF, β=β, N=4, t=0.8, μ=0.3, gfsolver=IFD.EDToulouseSolver(32))
     @test xt == yt[1]                            # 严格容器 == = 逐块相等
-    # 存活严格分派：BCS 实时（2026-11-25 恢复，FormB Nambu 翻倍；金标准见 test/exact/bcs_realtime.jl）
+    # 存活严格分派：BCS 实时（粒子字典 FormB 链；金标准见 test/exact/bcs_realtime.jl）
     bC = BCSBath(fF, β=β, μ=0.0, Δ=0.4)
     xtc = IFD.Δt(bC, N=4, t=0.8, scheme=e)
     ytc = IFD.exact_bcs_Δt(fF, β=β, N=4, t=0.8, Δ=0.4, gfsolver=IFD.EDToulouseSolver(32))

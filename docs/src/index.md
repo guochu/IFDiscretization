@@ -15,9 +15,10 @@ Schur 构造）。本包由 QuAPI 忠实移植而来，与上游共享约定。
   冻结核、方案与求解器、严格核、工具）。
 - **[Contours and Containers](conventions.md)**：三种时间轮廓的几何与
   节点序、`branch` 分支块约定、点值容器与严格容器的槽位语义（含 BCS
-  Nambu 块的有向 Wick 形式）。
+  四块的有向 Wick 形式）。
 - **[ExactKernel Contract](exact.md)**：严格核的严格性机制与装配级契约——
-  费米实轴 FormB 消元 + BCS 实时 FormB Nambu 翻倍（2026-11-25）、Z 证书
+  费米实轴 FormB 消元 + BCS 实时粒子字典 FormB 链（2026-11-26 换代，消费
+  契约 = 冻结核字面放置语义）、Z 证书
   （normdelta 定义）、金标准测试清单；退役族恢复入口见包 README todolist。
 
 ## 全局符号约定
@@ -76,7 +77,9 @@ ext/
 test/
 ├── api/                   # 语义/约定 + spin-boson ED 对拍 + BCS Grassmann 装配
 ├── quapi/                 # 冻结核自由模型阶数断言 + 存档逐字节回归
-├── exact/                 # ExactEqualDistantKernel 金标准（费米 123+58+37，BCS 17+11+25）
+├── exact/                 # ExactEqualDistantKernel 金标准（费米 uniform 核世界线消费证书 +
+│                          #   带踢 Schur 装配契约；BCS 冻结核字面放置语义 ED 端到端证书 +
+│                          #   闭式/结构化 ↔ 独立 Fock 稠密参照 + Δ=0 退化）
 └── osee.jl                # GaussianStates 扩展 OSEE
 docs/
 └── src/                   # 本文档源
@@ -92,9 +95,12 @@ julia --project=. test/runtests.jl
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-当前 9958 项全部通过，覆盖：三种统计 × 三轮廓的冻结核与严格核、方案分派、
-BCS Fock ED 定义级金标准、费米带踢 Schur 装配契约（Z ≡ 1 机器证书）、
-存档逐字节回归、GaussianStates 扩展 OSEE。
+当前 12185 项全部通过（单线程约 9–11 分钟），覆盖：三种统计 × 三轮廓的冻结核、
+方案分派、费米实轴严格核（带踢 Schur 装配契约 Z ≡ 1 机器证书 + uniform 核
+世界线消费证书 == Fock ED）、BCS 实轴严格核（冻结核字面放置语义 ED 端到端
+证书 + 闭式 cell/热边 == Fock 提取 + 结构化 Schur == 独立 Fock 稠密参照 +
+Δ=0 退化 + raw 参照自检 + Pfaffian 回归）、存档逐字节回归、
+GaussianStates 扩展 OSEE。
 
 ## 文档构建
 
