@@ -127,7 +127,7 @@ BB 的块结构求解（分配函数内部；块行/列 = (branch, node)，每�
 
 `BB·X = BI` 经仿射前推求解（P := X₊[N] 为参数：− 支后推、node-0 耦合、
 + 支前推，(I − A₊[N])·P = b₊[N] 一次 K×K 解后回代）；
-**det(BB) = det(I_K − Φ·diag(θ)·Ψ)**，Φ = Wb[N]⋯Wb[1]（+ 支单融）、
+**det(BB) = det(I_K + Φ·diag(θ)·Ψ)**，Φ = Wb[N]⋯Wb[1]（+ 支单融）、
 Ψ = adj(Wb[1])⋯adj(Wb[N])（− 支逆单融）——两条双对角块的 (−1)^{K(N+1)}
 因子相消。复杂度 O(N·K²·Limp + K³)，稠密路径 O((KN)³)。
 """
@@ -176,7 +176,7 @@ function _exrt_schur_structured(Wb::Vector{Matrix{ComplexF64}}, θ::Vector{Float
         x₊ = Wb[s-1] * x₊ - Matrix{ComplexF64}(Yp(s - 1))
         X[(0:K-1) .* (2N+2) .+ s, :] .= x₊
     end
-    # det(BB) = det(I_K − Φ·Θ·Ψ)
+    # det(BB) = det(I_K + Φ·Θ·Ψ)
     Φ = Matrix{ComplexF64}(I, K, K)
     Ψ = Matrix{ComplexF64}(I, K, K)
     for c in 1:N

@@ -198,3 +198,42 @@ scheme 类型层（`ExactKernel`/`ExactEqualDistantKernel`）保留为恢复挂�
 - [ ] 连续谱大规模基准（performance/ 树的 GL-M 基准未覆盖严格核实轴路线）。
 - [ ] 外部消费适配：GTEMPO 侧 `quapi_delta` 类适配器读旧 `hmat.Δ/basis`
       接口，需改读严格容器字段。
+- [ ] **`exact_fermionic_Δt` 装配升级：src 稠密 Schur → 块结构求解迁移**
+      （2026-11-27 定谳）：src 导出入口现走 FormB 稠密消元
+      （`fermions/exact/real.jl` 的 `effective = E + C·(B\Cᵀ)`，O((2KN)³) 时间 /
+      O((KN)²) 内存——K=64、N=64 约 4.5 GB A 阵 + 分钟级 LU）；块结构求解
+      **已存在且受测**：test/exact/_kicks_helper.jl `_exrt_schur_structured`
+      （`exact_fermionic_Δt_cells` 的 BB·X = BI 仿射前推——双分支双对角 +
+      热边/闭合边角块、det(BB) 闭式、O(N·K²·Limp + K³)；与稠密参照
+      `_exrt_strict_kernel_dense` 机器等价受测），BCS 侧同类原语
+      `_formb_chain_schur` 已在 src/exact/formb.jl（头注「原语维度无关」）。
+      迁移 = 结构化装配（无 kicks 部分）提升进 src（fermions/exact/），
+      `exact_fermionic_Δt` 等距 cells 径改调用（kicks 机器留测试侧不动）；
+      验收 = 新径对现行 src 稠密径 kernel 逐块 + normdelta 机器精度、
+      金标准阶梯全绿。附带订正（2026-11-27 已统一，结论与初记相反）：
+      det(BB) 正确式 = **加号**「det(I + ΦΘΨ)」——契约节与 helper 代码
+      （`detBB = det(I + Φ*Θ*Ψ)`，_kicks_helper.jl :186）一致，且被金标准
+      「结构化 Schur vs 稠密参照（机器等价）」的 normdelta 1e-9 对拍锚定
+      （fermionic_realtime.jl）；减号只在 helper 的 docstring/行内注释
+      （笔误，与其自身代码矛盾），已改 :130/:179。
+- [ ] **`exact_fermionic_Δt`/`exact_bcs_Δt` 的 normdelta 独立接口（kernel-only /
+      normdelta-only 拆分）**（2026-11-27 分析定谳，立项前不动）：现状 =
+      `(容器, normdelta)` 元组，normdelta 与 kernel 共享 Schur 中间量 G
+      （Δ = −antisym(G⁻¹)、normdelta = ν·Pf(G)）——搭车边际成本可忽略
+      （Pf O(L³) + ν O(N·K³) ≈ Schur 主导成本的 10⁻⁴），拆分本身**不省计算**；
+      多浴/双 lead 加法亦不需要（GTEMPO `exactif_pipeline` 已按 ∏nd 消费、
+      组合核 normdelta = 乘积免费；见 GTEMPO `Base.:+(::Exact, ::Exact)`
+      因子化裁决门 src/correlationfunction.jl +
+      plan/exactif_port_plan.md Phase B @ git，已删除 2026-11-27）。若为接口纯度立项：拆口在 IFD
+      内部（两导出入口共享 FormB 原语；GTEMPO 侧只包 `weylcn` 同款便利
+      函数，禁复刻 legpos/模表/ν 约定——两处真源）。normdelta-only 两路：
+      ① 推荐 = 浴侧闭式 Π(1−n̄ₖ)·det(I + Φ·diag(θ)·Ψ)（即
+      `_exrt_schur_structured` 的 detBB 部分——O(N·K³)、无 Pfaffian、
+      无接口 Schur，仅消费浴模 + 调度；依赖 = 上一条迁移先行；两套 Z 闭式
+      稠密 ν·Pf(G) vs 结构化 Π(1−n̄)·detBB 的机器等价须显式对拍钉死）；
+      ② 备选 = 恒等式路 normdelta = ν/Pf(Δ̃)（Δ̃ = 容器块全反称补全 =
+      −G⁻¹；Pf(G) = 1/Pf(Δ̃) 精确无符号歧义；前提 = normal 浴 G⁻¹ 同味块
+      严格零、补全规则 = 缺向 −transpose）。裁决均 = 离散谱 + 小 N 对拍
+      现行稠密径机器精度；大 N 硬化 = log-Pf（Parlett–Reid 累积 log|主元| +
+      符号）。BCS 同构拆法：ν = |c₀|^{2N}·a_edge·|Pf(B)|/Z_B 已是浴侧
+      闭式（chain schur 中间量）。
