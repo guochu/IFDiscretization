@@ -64,7 +64,11 @@ Exact 路由抛「未实现」（退役面与恢复入口见文末 todolist）�
 总 Gaussian 经耦合演化 W 缝合、热边进 bath 块；Schur 消 bath 块 + 反对称化
 得配对 Δ（数值 Pfaffian 出 normdelta）。杂质 kick 相位（幺正门
 `x = e^{−iα·ε_d}`）不进核——**纯耦合项契约**（核内无任何杂质信息），
-消费侧（K 链门 + 接口反测度 `counter_c = +1`）自行携带。
+消费侧（K 链门）自行携带。**裸核契约（2026-11-28）**：FormB Schur 装配
+吸收的 −1 接口分辨率单位（(+,+)/(-,-) 同支等时对角接触位，幂零像
+`exp(−x̄x)`）构造期就地扣除 ⟹ 核 = 物理裸 IF 双线性型（可加）；旧消费侧
+接口反测度 `counter_c = +1`（compact 核的对消因子）退役——消费者**不得**
+再乘（证据 GTEMPO debug/kernel_measure_subtraction/）。
 
 | 入口 | 轮廓 | Z 证书（normdelta 定义） | 金标准（test/exact/） |
 |---|---|---|---|
@@ -224,7 +228,16 @@ scheme 类型层（`ExactKernel`/`ExactEqualDistantKernel`）保留为恢复挂�
       多浴/双 lead 加法亦不需要（GTEMPO `exactif_pipeline` 已按 ∏nd 消费、
       组合核 normdelta = 乘积免费；见 GTEMPO `Base.:+(::Exact, ::Exact)`
       因子化裁决门 src/correlationfunction.jl +
-      plan/exactif_port_plan.md Phase B @ git，已删除 2026-11-27）。若为接口纯度立项：拆口在 IFD
+      plan/exactif_port_plan.md Phase B @ git，已删除 2026-11-27）。
+      **【2026-11-28 裸核契约闭环，取代 11-27 实施门证伪记录】**FormB compact
+      核的对角接触 −1 接口分辨率单位改为**构造期就地扣除**（裸核 = 物理裸
+      IF 双线性型；同支等时对角 +1），消费端 counter_c=+1 反测度退役；
+      `Base.:+(::Exact,::Exact)` 已实施（blocks 相加 + normdelta 相乘）。
+      同带双浴加法 vs 并集谱单构造的残差 = 胞内 [V_A,V_B] 换位 O(δt²)
+      同时/顺序耦合约定差（11-27 遗留残差 1.3e-7/1.4e-6 定谳；幂律探针 =
+      GTEMPO/debug/kernel_measure_subtraction/）。历史证伪档案 =
+      GTEMPO/debug/kernel_addition_plan/。同浴联合谱单构造（并集谱直连本
+      入口）仍可用（同时耦合约定）。若为接口纯度立项：拆口在 IFD
       内部（两导出入口共享 FormB 原语；GTEMPO 侧只包 `weylcn` 同款便利
       函数，禁复刻 legpos/模表/ν 约定——两处真源）。normdelta-only 两路：
       ① 推荐 = 浴侧闭式 Π(1−n̄ₖ)·det(I + Φ·diag(θ)·Ψ)（即

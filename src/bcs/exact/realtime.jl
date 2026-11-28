@@ -125,6 +125,12 @@ BCS（超导）浴严格 IF 核（实时 Keldysh 轮廓）——**纯耦合项�
    `normdelta = ν·Pf(G)`，ν = |c₀|^{2N}·a_edge·|Pf(B)|/Z_B
    （文件头注；离散链浴配分函数 / 精确浴配分函数）。Δ=0 锚：`uu` == `dd` ==
    费米核（谱 ε）逐位、`ud = du ≡ 0`、ν = ν_ferm²。
+4. **裸核契约（2026-11-28）**：与费米严格核同款（exact_fermionic_Δt docstring
+   契约 4）——Schur 装配吸收的 −1 接口分辨率单位（幂零像 `exp(−x̄x)`，逐
+   支撑点 2..N+1 逐支逐**味**）构造期就地扣除，只落正常通道 `uu`/`dd` 的
+   同支等时对角（反常键 (ā↑,ā↓)/(a↓,a↑) 无 plain-pair 位、无吸收）；消费者
+   **不得**再乘接口分辨率反测度（compact 标定 `counter_c = +1` 已随裸核
+   契约退役）。
 
 # 构造（粒子字典 FormB 链，文件头注）
 接口槽 8N（每 cell 每支 4 槽 × 味 × (out,in)）+ 浴块（2N+1 个轮廓位置 × 4K 腿）
@@ -260,5 +266,17 @@ function exact_bcs_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Real,
     dd = blk((i, b) -> inn(i, b, 2), (j, b) -> out(j, b, 2))   # ā↓Δa↓
     ud = blk((i, b) -> inn(i, b, 1), (j, b) -> inn(j, b, 2))   # ā↑Δā↓（对产生）
     du = blk((i, b) -> out(i, b, 2), (j, b) -> out(j, b, 1))   # a↓Δa↑（对湮灭）
-    return BCSCorrelationFunction(uu=uu, ud=ud, du=du, dd=dd), ν * _formb_pfaffian(G)
+    # 裸核契约：Schur 装配吸收的 −1 接口分辨率单位（幂零像 exp(−x̄x)，逐支撑
+    # 点逐支逐味；见 docstring 契约 4）构造期就地扣除——正常通道 uu/dd 的同支
+    # 等时对角 +1（容器点 2..N+1；ud/du 反常键无 plain-pair 位、无吸收）
+    barefix(x::ExactRealCorrelationFunction) = begin
+        pp = Matrix(x.G₊₊)
+        mm = Matrix(x.G₋₋)
+        for m in (pp, mm), p in 2:size(pp, 1)
+            m[p, p] += 1.0
+        end
+        ExactRealCorrelationFunction(pp, x.G₊₋, x.G₋₊, mm)
+    end
+    return BCSCorrelationFunction(uu=barefix(uu), ud=ud, du=du, dd=barefix(dd)),
+           ν * _formb_pfaffian(G)
 end

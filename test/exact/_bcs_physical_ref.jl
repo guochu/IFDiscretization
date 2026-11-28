@@ -241,6 +241,19 @@ function bcs_chain_dense_ref(εs::AbstractVector, Vs::AbstractVector, Δ::Number
         dd=blk((i, b) -> inn(i, b, 2), (j, b) -> out(j, b, 2)),
         ud=blk((i, b) -> inn(i, b, 1), (j, b) -> inn(j, b, 2)),
         du=blk((i, b) -> out(i, b, 2), (j, b) -> out(j, b, 1)))
+    # 裸核口径（2026-11-28，与 src exact_bcs_Δt 同约定、独立实现）：Schur 的
+    # −1 接口分辨率吸收（幂零像 exp(−x̄x)，逐支撑点逐支逐味）就地扣除——
+    # uu/dd 同支等时对角 +1（容器点 2..N+1；ud/du 反常键无吸收）
+    function barefix(x)
+        pp = Matrix(x.G₊₊)
+        mm = Matrix(x.G₋₋)
+        for m in (pp, mm), p in 2:size(pp, 1)
+            m[p, p] += 1.0
+        end
+        IFD.ExactRealCorrelationFunction(pp, x.G₊₋, x.G₋₊, mm)
+    end
+    kern = IFD.BCSCorrelationFunction(uu=barefix(kern.uu), dd=barefix(kern.dd),
+                                      ud=kern.ud, du=kern.du)
     PfB = pf_std(B)
     PfG = pf_std(G)
     ν = c0sq^N * aedge * abs(PfB) / ZB

@@ -21,12 +21,21 @@ _exrt_legpos(j0::Int, br::Symbol, ā::Bool) = 4 * j0 + (br === :+ ? 0 : 2) + (ā
 1. **核 = 纯耦合项**：核内只含浴 + 杂质-浴耦合 h₀（谱 `f` 经 `gfsolver`
    离散的星形模）与热力学 β——**不含任何杂质哈密顿量信息**（无 ε_d、无
    劈分阶数、无 kick 相位）。IF 装配对一般杂质模型无假设（纯浴对象）。
-2. **严格性语义**：消费侧（杂质演化**全部**走 K 链门 + 接口反测度
-   `counter_c = +1` + Keldysh 折返 + ρ₀）的轮廓收缩 = 同调度**直接
-   Trotter 离散链的迹，任意 ε_d 机器精确**（消费参考实现 =
-   GTEMPO `exactif_pipeline`；机器锚 = GTEMPO test/exactif 阶梯）。
+2. **严格性语义**：消费侧（杂质演化**全部**走 K 链门 + Keldysh 折返 + ρ₀，
+   **无接口反测度**）的轮廓收缩 = 同调度**直接 Trotter 离散链的迹，任意 ε_d
+   机器精确**（消费参考实现 = GTEMPO `exactif_pipeline`；机器锚 = GTEMPO
+   test/exactif 阶梯）。
 3. **归一契约**：`Z = 轮廓收缩 × normdelta`（比值观测量严格相消）；
    `normdelta = ν·Pf(G)`，ν = 浴链配分比 `det(I+BRB†)/det(I+R)`。
+4. **裸核契约（2026-11-28）**：核为**测度自由**（bare）二次型——FormB 消元的
+   Schur 装配天然在 (+,+)/(-,-) 同支等时对角接触位（支撑点 2..N+1，逐支逐带）
+   吸收一个 −1 接口分辨率单位（幂零像 `exp(−x̄x) = 1 − x̄x`，挂接口结构、不挂
+   浴模数/μ/β），构造期就地扣除（对角 +1），核值 = 物理裸 IF 双线性型 ⟹
+   核在双线性型层**可加**（独立浴联合核 = 各浴核相加 + normdelta 相乘；同一带
+   双浴与并集谱单构造的残差 = 胞内 [V_A,V_B] 换位 O(δt²) 离散约定差，探针
+   debug/kernel_measure_subtraction/probe_bare.jl：残差 δt³ 幂律）。消费者
+   **不得**再乘接口分辨率反测度（counter_c ±1 均错——2026-11-22 的 compact
+   标定 `counter_c = +1` 随本裸核契约退役）。
 
 # 构造（形态 B / FormB 消元）
 接口槽（c = 1..N × 支 × (bar, eta)）+ bath 配对（trace_final + forward(N) +
@@ -125,6 +134,11 @@ function exact_fermionic_Δt(f::AbstractBoundedFunction; β::Real, N::Int, t::Re
         v = sgn * GA[_formb_partner(c, br, :bar), _formb_partner(c2, br2, :eta)]
         iszero(v) && continue
         Δ[_exrt_legpos(c, br, true), _exrt_legpos(c2, br2, false)] = v
+    end
+    # 裸核契约：Schur 装配吸收的 −1 接口分辨率单位（每支撑点 2..N+1 每支的
+    # 幂零像 exp(−x̄x)，见 docstring 契约 4）构造期就地扣除（同支等时对角 +1）
+    for c in 1:N, br in (:+, :-)
+        Δ[_exrt_legpos(c, br, true), _exrt_legpos(c, br, false)] += 1.0
     end
     basis = [GrassmannContourIndex(j0 + 1, br, 1, c)
              for j0 in 0:N for br in (:+, :-) for c in (false, true)]

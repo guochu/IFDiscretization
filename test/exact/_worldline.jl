@@ -3,7 +3,8 @@
 #
 # 语义 = GTEMPO 严格核消费层（sysdynamics_exact + PartialIF 消费）的紧凑翻译，逐因子经
 # GTEMPO 本体 oracle dump 标定（2026-11-25）：每站 (节点, 支, 带) 持 (a = plain, ā = conj)
-# 一对腿；门/反测度/折返/核都是因子 1 + c·θ_i∧θ_j；ρ₀ 占据投影是纯单项式。
+# 一对腿；门/折返/核都是因子 1 + c·θ_i∧θ_j（裸核契约 2026-11-28：接口反测度因子随
+# compact 核退役，核值 = 构造期扣除分辨率单位的裸 IF）；ρ₀ 占据投影是纯单项式。
 #
 # 求值恒等式（均经暴力 Grassmann 展开数值标定，比值全 +1）：
 #   Tr_B[e^{½θᵀMθ}] = Pf(M + Ω)                       （Ω = 站内 (a,ā) 配对形式）
@@ -59,8 +60,11 @@ end
 # ---------------- 费米（单带）：站 s(n, br) = 2(n−1) + (br==:+ ? 1 : 2) ----------------
 f_plain(n, br) = 2 * (2 * (n - 1) + (br === :+ ? 1 : 2)) - 1
 f_conj(n, br) = 2 * (2 * (n - 1) + (br === :+ ? 1 : 2))
-"native 调度：门 (1 + x·ā_{g+1}∧a_g)、反测度 1 + ā_p∧a_p（节点 2..Nt−1）、折返 1 + ā⁻_{Nt}∧a⁺_{Nt}、
-核四块（跨支取负）放 (ā_i, a_j)；ρ₀ 真空（占据投影走 wl_readout 的两条腿）"
+"native 调度：门 (1 + x·ā_{g+1}∧a_g)、折返 1 + ā⁻_{Nt}∧a⁺_{Nt}、
+核四块（跨支取负）放 (ā_i, a_j)；ρ₀ 真空（占据投影走 wl_readout 的两条腿）。
+裸核契约（2026-11-28）：核已测度自由（FormB 吸收的 −1 接口分辨率单位构造期
+扣除），消费侧**无接口反测度**（旧 `1 + ā_p∧a_p` 因子随 compact 约定退役——
+worldline M 矩阵恒等式：旧 compact+反测度 ≡ 新裸核，逐位一致）。"
 function fermi_factors(kernel, N::Int, links, εd::Real)
     Nt = N + 2
     F = Tuple{Int,Int,ComplexF64}[]
@@ -68,9 +72,6 @@ function fermi_factors(kernel, N::Int, links, εd::Real)
         x = exp(-im * links[g] * εd)
         push!(F, (f_conj(g + 1, :+), f_plain(g, :+), x))
         push!(F, (f_conj(g, :-), f_plain(g + 1, :-), conj(x)))
-    end
-    for p in 2:(Nt - 1), br in (:+, :-)
-        push!(F, (f_conj(p, br), f_plain(p, br), 1.0 + 0.0im))
     end
     push!(F, (f_conj(Nt, :-), f_plain(Nt, :+), 1.0 + 0.0im))
     for b1 in (:+, :-), b2 in (:+, :-)
@@ -117,9 +118,6 @@ function bcs_factors_particle(kern, N::Int, links, εd::Real)
             push!(F, (bcs_conj(g + 1, :+, b), bcs_plain(g, :+, b), x))
             push!(F, (bcs_conj(g, :-, b), bcs_plain(g + 1, :-, b), conj(x)))
         end
-    end
-    for p in 2:(Nt - 1), br in (:+, :-), b in 1:2
-        push!(F, (bcs_conj(p, br, b), bcs_plain(p, br, b), 1.0 + 0.0im))
     end
     for b in 1:2
         push!(F, (bcs_conj(Nt, :-, b), bcs_plain(Nt, :+, b), 1.0 + 0.0im))

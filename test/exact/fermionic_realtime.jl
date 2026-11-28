@@ -237,7 +237,8 @@ const εd = 0.3
     end
 
     # ---- uniform API 的消费端到端（2026-11-25）：世界线收缩 == Fock ED 门序列链 ----
-    # GTEMPO 严格核消费语义（门 + 反测度 + 折返 + ρ₀）的紧凑翻译 = test/exact/_worldline.jl
+    # GTEMPO 严格核消费语义（门 + 折返 + ρ₀，裸核无反测度——2026-11-28 裸核契约）
+    # 的紧凑翻译 = test/exact/_worldline.jl
     # `fermi_worldline`（逐因子经 GTEMPO 本体 oracle dump 标定）；参照 = native 调度
     # （先门后 cell；order 2 = Strang）的 Fock 门序列链 `_fermion_ed_chain.jl`。
     # 覆盖 uniform 核本身（此前只有 fixture 冻结常数锚）：非对称谱 × orders 1/2 ×
